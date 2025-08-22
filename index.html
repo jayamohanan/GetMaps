@@ -1,217 +1,227 @@
-<!-- version: v1.1.0 (2025-08-21, IST) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>J Kerala Administrative Boundaries – Interactive Map</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kerala Administrative Boundaries Viewer</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>
-    :root {
-      --sidebar-width: 340px;
-      --gap: 10px;
-      --panel-pad: 12px;
-      --radius: 14px;
-      --shadow: 0 6px 24px rgba(0,0,0,0.12);
-    }
-    html, body { height: 100%; margin: 0; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial; }
-    #app { display: grid; grid-template-columns: var(--sidebar-width) 1fr; height: 100%; }
-    #map { width: 100%; height: 100%; background: #fff; }
-
-    .sidebar {
-      position: relative;
-      background: #fafafa;
-      border-right: 1px solid #e5e5e5;
-      padding: 16px 12px 24px 12px;
-      overflow-y: auto;
-    }
-    .panel {
-      background: #fff;
-      border: 1px solid #e6e6e6;
-      border-radius: var(--radius);
-      padding: var(--panel-pad);
-      margin-bottom: 14px;
-      box-shadow: var(--shadow);
-    }
+    body, html { margin: 0; padding: 0; height: 100%; font-family: Arial, sans-serif; }
+    #map { position: absolute; top: 0; bottom: 0; right: 0; left: 300px; }
+    #panel-container { position: absolute; top: 0; bottom: 0; left: 0; width: 300px; background: #f7f7f7; border-right: 1px solid #ccc; overflow-y: auto; padding: 10px; }
+    .panel { background: #fff; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
     .panel h3 { margin: 0 0 10px 0; font-size: 16px; }
-    .row { margin: 8px 0; }
-    label { font-size: 12px; color: #333; }
-    input[type="range"], input[type="color"] {
-      width: 100%;
-    }
-    .muted { font-size: 12px; color: #666; }
-    .btns { display: flex; gap: 10px; margin-top: 8px; }
-    button { flex: 1; padding: 10px 12px; border-radius: 12px; border: 1px solid #d9d9d9; background: #fff; cursor: pointer; }
-    button.primary { background: #111; color: #fff; border-color: #111; }
-    .version-badge {
-      position: fixed; top: 12px; right: 12px; z-index: 9999;
-      background: rgba(17,17,17,0.9); color: #fff; padding: 6px 10px; border-radius: 999px; font-size: 12px;
-      box-shadow: var(--shadow);
-    }
-    .toggle { position: fixed; left: 10px; top: 10px; z-index: 10000; border-radius: 999px; border: 1px solid #ccc; background: #fff; padding: 8px 10px; cursor: pointer; box-shadow: var(--shadow); }
-    @media (max-width: 900px) {
-      #app { grid-template-columns: 1fr; }
-      .sidebar { position: fixed; left: 10px; top: 54px; bottom: 10px; width: calc(100% - 20px); max-width: 480px; border-radius: var(--radius); display: none; }
-      .sidebar.open { display: block; }
-    }
+    .panel label { display: block; margin-top: 5px; }
+    .panel select, .panel input[type=text], .panel input[type=color], .panel input[type=range] { width: 100%; }
+    .panel button { margin-top: 5px; width: 48%; }
+    .panel .button-group { display: flex; justify-content: space-between; }
+    .add-panel-btn { display: block; margin: 10px auto; padding: 5px 10px; cursor: pointer; }
   </style>
 </head>
 <body>
-  <div class="version-badge" id="versionBadge">v1.1.0</div>
-  <button class="toggle" id="toggleBtn">Panels</button>
-  <div id="app">
-    <aside class="sidebar" id="sidebar">
-      <div class="panel" id="basemapPanel">
-        <h3>🗺️ Base Map</h3>
-        <label for="basemapSelect">Choose base map</label>
-        <select id="basemapSelect"></select>
-      </div>
 
-      <div class="panel" id="districtPanel">
-        <h3>📍 Districts</h3>
-        <label for="districtSelect">Select districts</label>
-        <select id="districtSelect" multiple></select>
-        <div class="row">
-          <label for="districtColor">Color</label>
-          <input id="districtColor" type="color" value="#000000" />
-        </div>
-        <div class="row">
-          <label for="districtTrans">Transparency</label>
-          <input id="districtTrans" type="range" min="0" max="100" value="100" />
-          <div class="muted" id="districtTransVal">100%</div>
-        </div>
-        <div class="btns">
-          <button id="drawDistrict" class="primary">Draw</button>
-          <button id="clearDistrict">Clear</button>
-        </div>
-      </div>
+<div id="panel-container">
+  <button class="add-panel-btn" onclick="addPanel()">+ Add Panel</button>
+</div>
+<div id="map"></div>
 
-      <div class="panel" id="assemblyPanel">
-        <h3>🧭 Assemblies</h3>
-        <label for="assemblySelect">Select assemblies</label>
-        <select id="assemblySelect" multiple></select>
-        <div class="row">
-          <label for="assemblyColor">Color</label>
-          <input id="assemblyColor" type="color" value="#000000" />
-        </div>
-        <div class="row">
-          <label for="assemblyTrans">Transparency</label>
-          <input id="assemblyTrans" type="range" min="0" max="100" value="100" />
-          <div class="muted" id="assemblyTransVal">100%</div>
-        </div>
-        <div class="btns">
-          <button id="drawAssembly" class="primary">Draw</button>
-          <button id="clearAssembly">Clear</button>
-        </div>
-      </div>
-    </aside>
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Leaflet Search for searchable dropdowns -->
+<script src="https://unpkg.com/leaflet-search@3.0.2/dist/leaflet-search.src.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-search@3.0.2/dist/leaflet-search.min.css"/>
 
-    <div id="map"></div>
-  </div>
+<script>
+let map = L.map('map').setView([10.8505, 76.2711], 7);
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
-  <script>
-    const VERSION = 'v1.1.0';
-    document.getElementById('versionBadge').textContent = VERSION;
+// Base maps
+let baseMaps = {
+  "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map),
+  "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 }),
+  "Blank": L.tileLayer('', { maxZoom: 19 })
+};
+L.control.layers(baseMaps).addTo(map);
 
-    const map = L.map('map', { center: [10.1632, 76.6413], zoom: 8 });
+// Store GeoJSON data
+let geojsonData = {};
+const geojsonFiles = {
+  "State": "state_v15.2.geojson",
+  "District": "district_V15.geojson",
+  "Assembly": "assembly_V15.geojson",
+  "Local body": "lsg_V15.geojson"
+};
 
-    map.createPane('districts').style.zIndex = 350;
-    map.createPane('assemblies').style.zIndex = 400;
+// Load GeoJSON files
+for (let type in geojsonFiles) {
+  fetch(geojsonFiles[type])
+    .then(res => res.json())
+    .then(data => { geojsonData[type] = data; })
+    .catch(err => console.error(`Error loading ${type} data:`, err));
+}
 
-    const baseLayers = {
-      'None': L.layerGroup(),
-      'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
-      'Carto Light': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'),
-      'Esri Imagery': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
-    };
-    let activeBase = baseLayers['OpenStreetMap'];
-    activeBase.addTo(map);
+// Store drawn layers per panel
+let panelLayers = [];
 
-    const basemapSelect = document.getElementById('basemapSelect');
-    Object.keys(baseLayers).forEach(name => {
-      const opt = document.createElement('option');
-      opt.value = name; opt.textContent = name;
-      if (name === 'OpenStreetMap') opt.selected = true;
-      basemapSelect.appendChild(opt);
-    });
-    basemapSelect.addEventListener('change', () => {
-      if (activeBase) map.removeLayer(activeBase);
-      activeBase = baseLayers[basemapSelect.value];
-      if (activeBase) activeBase.addTo(map);
-    });
+// Panel counter
+let panelCount = 0;
 
-    const districtLayerGroup = L.layerGroup().addTo(map);
-    const assemblyLayerGroup = L.layerGroup().addTo(map);
+// Panel creation function
+function addPanel() {
+  panelCount++;
+  const panelContainer = document.getElementById('panel-container');
+  
+  const panel = document.createElement('div');
+  panel.className = 'panel';
+  panel.id = `panel-${panelCount}`;
+  panel.innerHTML = `
+    <h3>Panel ${panelCount}</h3>
+    <label>Type:</label>
+    <select onchange="onTypeChange(${panelCount}, this.value)">
+      <option value="">Select Type</option>
+      <option>State</option>
+      <option>District</option>
+      <option>Assembly</option>
+      <option>Local body</option>
+    </select>
+    <label>Name:</label>
+    <input type="text" id="name-${panelCount}" disabled placeholder="Select Type First"/>
+    <div id="checkboxes-${panelCount}" style="display:none;">
+      <label><input type="checkbox" id="parent-${panelCount}"> Parent(s)</label>
+      <label><input type="checkbox" id="children-${panelCount}"> Children</label>
+      <label><input type="checkbox" id="siblings-${panelCount}"> Siblings</label>
+    </div>
+    <label>Boundary Color:</label>
+    <input type="color" id="color-${panelCount}" value="#000000"/>
+    <label>Fill Transparency:</label>
+    <input type="range" id="opacity-${panelCount}" min="0" max="1" step="0.1" value="0.5"/>
+    <div class="button-group">
+      <button onclick="drawBoundary(${panelCount})">Draw</button>
+      <button onclick="clearBoundary(${panelCount})">Clear</button>
+    </div>
+  `;
+  
+  panelContainer.appendChild(panel);
+}
 
-    async function loadGeoJSON(path) {
-      const r = await fetch(path);
-      return await r.json();
+// Type change handler
+function onTypeChange(panelId, type) {
+  const nameInput = document.getElementById(`name-${panelId}`);
+  const checkboxDiv = document.getElementById(`checkboxes-${panelId}`);
+  
+  if (!type) {
+    nameInput.disabled = true;
+    checkboxDiv.style.display = 'none';
+    return;
+  }
+  
+  nameInput.disabled = false;
+  checkboxDiv.style.display = 'block';
+  
+  // Auto-complete for name input
+  const names = geojsonData[type] ? geojsonData[type].features.map(f => f.properties.Name) : [];
+  nameInput.setAttribute('list', `list-${panelId}`);
+  if (!document.getElementById(`list-${panelId}`)) {
+    const datalist = document.createElement('datalist');
+    datalist.id = `list-${panelId}`;
+    panel.appendChild(datalist);
+  }
+  const datalist = document.getElementById(`list-${panelId}`);
+  datalist.innerHTML = names.map(n => `<option value="${n}">`).join('');
+}
+
+// Draw boundary
+function drawBoundary(panelId) {
+  const panel = document.getElementById(`panel-${panelId}`);
+  const type = panel.querySelector('select').value;
+  const name = panel.querySelector(`#name-${panelId}`).value;
+  const color = panel.querySelector(`#color-${panelId}`).value;
+  const opacity = parseFloat(panel.querySelector(`#opacity-${panelId}`).value);
+  const showParent = panel.querySelector(`#parent-${panelId}`).checked;
+  const showChildren = panel.querySelector(`#children-${panelId}`).checked;
+  const showSiblings = panel.querySelector(`#siblings-${panelId}`).checked;
+
+  if (!geojsonData[type]) { alert("Data not loaded yet"); return; }
+  
+  // Find main feature
+  let mainFeature = geojsonData[type].features.find(f => f.properties.Name === name);
+  if (!mainFeature) { alert("Feature not found"); return; }
+  
+  let layersToAdd = [];
+  
+  // Helper function to add feature to layers
+  function addFeatureLayer(feature, layerType) {
+    const layer = L.geoJSON(feature, { style: { color: color, fillOpacity: opacity } }).addTo(map);
+    layersToAdd.push(layer);
+  }
+  
+  // Draw selected feature
+  addFeatureLayer(mainFeature, type);
+  
+  // Hierarchy logic
+  if (showParent || showChildren || showSiblings) {
+    // Example logic for parents/children/siblings
+    const lsgData = geojsonData["Local body"];
+    const assemblyData = geojsonData["Assembly"];
+    const districtData = geojsonData["District"];
+    const stateData = geojsonData["State"];
+    
+    if (type === "State") {
+      if (showChildren) {
+        // Draw all districts/assemblies/lsg within the state
+        if (districtData) districtData.features.forEach(f => addFeatureLayer(f, "District"));
+        if (assemblyData) assemblyData.features.forEach(f => addFeatureLayer(f, "Assembly"));
+        if (lsgData) lsgData.features.forEach(f => addFeatureLayer(f, "Local body"));
+      }
     }
-
-    function fillChoices(selectEl, features) {
-      const names = [...new Set(features.map(f => f.properties?.Name).filter(n => n))].sort();
-      names.forEach(n => {
-        const opt = document.createElement('option');
-        opt.value = n; opt.textContent = n;
-        selectEl.appendChild(opt);
-      });
-      return new Choices(selectEl, { removeItemButton: true, searchEnabled: true });
-    }
-
-    function transparencyToOpacity(val) { return 1 - (val/100); }
-
-    function drawFeatures(features, selected, color, pane, group, fillOpacity) {
-      features.filter(f => selected.includes(f.properties?.Name)).forEach(f => {
-        L.geoJSON(f, { pane, style: { color, weight: 2, fillColor: color, fillOpacity } }).addTo(group);
+    if (type === "District") {
+      if (showParent && stateData) stateData.features.forEach(f => addFeatureLayer(f, "State"));
+      if (showChildren) {
+        if (assemblyData) assemblyData.features.forEach(f => addFeatureLayer(f, "Assembly"));
+        if (lsgData) lsgData.features.forEach(f => addFeatureLayer(f, "Local body"));
+      }
+      if (showSiblings && districtData) districtData.features.forEach(f => {
+        if (f.properties.Name !== name) addFeatureLayer(f, "District");
       });
     }
-
-    (async function(){
-      const [districtGeo, assemblyGeo] = await Promise.all([
-        loadGeoJSON('district_V15.geojson'),
-        loadGeoJSON('assembly_V15.geojson')
-      ]);
-
-      const districtChoices = fillChoices(document.getElementById('districtSelect'), districtGeo.features);
-      const assemblyChoices = fillChoices(document.getElementById('assemblySelect'), assemblyGeo.features);
-
-      const dTrans = document.getElementById('districtTrans');
-      const aTrans = document.getElementById('assemblyTrans');
-      const dVal = document.getElementById('districtTransVal');
-      const aVal = document.getElementById('assemblyTransVal');
-      let dOpacity = transparencyToOpacity(dTrans.value);
-      let aOpacity = transparencyToOpacity(aTrans.value);
-      dTrans.addEventListener('input', ()=>{ dVal.textContent=dTrans.value+'%'; dOpacity=transparencyToOpacity(dTrans.value); districtLayerGroup.eachLayer(l=>l.setStyle({fillOpacity:dOpacity})); });
-      aTrans.addEventListener('input', ()=>{ aVal.textContent=aTrans.value+'%'; aOpacity=transparencyToOpacity(aTrans.value); assemblyLayerGroup.eachLayer(l=>l.setStyle({fillOpacity:aOpacity})); });
-
-      document.getElementById('drawDistrict').addEventListener('click', ()=>{
-        const selected = districtChoices.getValue(true);
-        const color = document.getElementById('districtColor').value;
-        drawFeatures(districtGeo.features, selected, color, 'districts', districtLayerGroup, dOpacity);
+    if (type === "Assembly") {
+      if (showParent) {
+        if (districtData) districtData.features.forEach(f => addFeatureLayer(f, "District"));
+        if (stateData) stateData.features.forEach(f => addFeatureLayer(f, "State"));
+      }
+      if (showChildren && lsgData) lsgData.features.forEach(f => addFeatureLayer(f, "Local body"));
+      if (showSiblings && assemblyData) assemblyData.features.forEach(f => {
+        if (f.properties.Name !== name) addFeatureLayer(f, "Assembly");
       });
-      document.getElementById('clearDistrict').addEventListener('click', ()=> districtLayerGroup.clearLayers());
-
-      document.getElementById('drawAssembly').addEventListener('click', ()=>{
-        const selected = assemblyChoices.getValue(true);
-        const color = document.getElementById('assemblyColor').value;
-        drawFeatures(assemblyGeo.features, selected, color, 'assemblies', assemblyLayerGroup, aOpacity);
+    }
+    if (type === "Local body") {
+      if (showParent) {
+        if (assemblyData) assemblyData.features.forEach(f => addFeatureLayer(f, "Assembly"));
+        if (districtData) districtData.features.forEach(f => addFeatureLayer(f, "District"));
+        if (stateData) stateData.features.forEach(f => addFeatureLayer(f, "State"));
+      }
+      if (showSiblings && lsgData) lsgData.features.forEach(f => {
+        if (f.properties.Name !== name) addFeatureLayer(f, "Local body");
       });
-      document.getElementById('clearAssembly').addEventListener('click', ()=> assemblyLayerGroup.clearLayers());
+    }
+  }
+  
+  // Save layers for this panel
+  panelLayers[panelId] = layersToAdd;
+}
 
-      const tmp = L.geoJSON(districtGeo);
-      map.fitBounds(tmp.getBounds());
-      tmp.remove();
-    })();
+// Clear boundary
+function clearBoundary(panelId) {
+  if (panelLayers[panelId]) {
+    panelLayers[panelId].forEach(l => map.removeLayer(l));
+    panelLayers[panelId] = [];
+  }
+}
 
-    const sidebar = document.getElementById('sidebar');
-    const toggleBtn = document.getElementById('toggleBtn');
-    toggleBtn.addEventListener('click', ()=> sidebar.classList.toggle('open'));
-  </script>
+// Initialize first panel on load
+addPanel();
+
+</script>
 </body>
 </html>
-
-
