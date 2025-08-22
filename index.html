@@ -4,483 +4,190 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kerala Administrative Boundaries Viewer</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4xn+LwB4D6/uG5v5H/D1q8F5L5j7zF5+5H5+5H5/g0=" crossorigin=""/>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4xn+LwB4D6/uG5v/9YmXLqg+/c5T4kDjvL5u3rFtkM=" crossorigin=""/>
+    <!-- Choices.js CSS for searchable select -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
     <style>
-        body {
-            font-family: sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            height: 100vh;
-        }
-        #sidebar {
-            width: 350px;
-            padding: 10px;
-            background-color: #f4f4f4;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            position: relative;
-        }
-        #map {
-            flex-grow: 1;
-        }
-        .panel {
-            border: 1px solid #ccc;
-            padding: 15px;
-            margin-bottom: 15px;
-            background-color: #fff;
-            border-radius: 5px;
-        }
-        .panel h4 {
-            margin-top: 0;
-        }
-        .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .panel-header button {
-            background: none;
-            border: none;
-            font-size: 1.5em;
-            cursor: pointer;
-            color: #888;
-        }
-        .panel-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        .dynamic-checkboxes {
-            margin-top: 10px;
-        }
-        .boundary-customization {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .color-picker-group {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .slider-group {
-            flex-grow: 1;
-        }
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .action-buttons button {
-            padding: 8px 12px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .draw-btn {
-            background-color: #28a745;
-            color: white;
-        }
-        .clear-btn {
-            background-color: #dc3545;
-            color: white;
-        }
-        #add-panel-btn {
-            position: sticky;
-            bottom: 10px;
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        #timestamp {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background-color: rgba(255, 255, 255, 0.7);
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 0.9em;
-        }
-        #basemap-selector {
-            position: absolute;
-            top: 50px;
-            right: 10px;
-            z-index: 1000;
-        }
+        body, html { margin:0; padding:0; height:100%; font-family: Arial, sans-serif; }
+        #container { display:flex; height:100vh; }
+        #sidebar { width: 320px; overflow-y:auto; padding:10px; background:#f9f9f9; border-right:1px solid #ccc; }
+        #map { flex:1; }
+        .panel { border:1px solid #ccc; padding:10px; margin-bottom:10px; border-radius:5px; background:#fff; }
+        .panel-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+        .panel-header button { cursor:pointer; }
+        .checkbox-group { margin:5px 0; }
+        label { display:block; margin-bottom:3px; font-size:14px; }
+        .timestamp { position:absolute; top:10px; right:10px; background:rgba(255,255,255,0.8); padding:5px 10px; border-radius:5px; font-size:14px; z-index:1000; }
     </style>
 </head>
 <body>
+<div class="timestamp" id="timestamp"></div>
+<div id="container">
     <div id="sidebar">
-        <div id="panels-container">
+        <button id="addPanelBtn">+ Add Panel</button>
+        <div id="panelsContainer"></div>
+    </div>
+    <div id="map"></div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o9N1j96b1syZg6w1mk5a2hH1Vwx5dW2vB9f+DxPa4I8=" crossorigin=""></script>
+<!-- Choices.js for searchable select -->
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+<script>
+    // Initialize map
+    const map = L.map('map').setView([10.8505, 76.2711], 7);
+
+    // Base maps
+    const baseMaps = {
+        "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; OpenStreetMap'}),
+        "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {maxZoom:17, attribution:'&copy; OpenTopoMap'}),
+        "Blank": L.tileLayer('', {maxZoom:19})
+    };
+    baseMaps.OpenStreetMap.addTo(map);
+
+    L.control.layers(baseMaps).addTo(map);
+
+    // Track layers per panel
+    let panelCounter = 0;
+    const panelLayers = {};
+
+    // Update timestamp
+    const timestampEl = document.getElementById('timestamp');
+    const now = new Date();
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const pad = n => n.toString().padStart(2,'0');
+    timestampEl.textContent = `${days[now.getDay()]}, ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    // Add new panel
+    document.getElementById('addPanelBtn').addEventListener('click', () => {
+        addPanel();
+    });
+
+    function addPanel() {
+        panelCounter++;
+        const panelId = `panel${panelCounter}`;
+        const container = document.getElementById('panelsContainer');
+
+        const panelDiv = document.createElement('div');
+        panelDiv.className = 'panel';
+        panelDiv.id = panelId;
+
+        panelDiv.innerHTML = `
+            <div class="panel-header">
+                <strong>Panel ${panelCounter}</strong>
+                <button class="removeBtn">x</button>
             </div>
-        <button id="add-panel-btn">+</button>
-    </div>
-    <div id="map">
-        <div id="timestamp"></div>
-        <div id="basemap-selector">
-            <select id="basemap-dropdown">
-                <option value="osm">OpenStreetMap</option>
-                <option value="topo">OpenTopoMap</option>
-                <option value="blank">Blank</option>
+            <label>Type:</label>
+            <select class="typeSelect">
+                <option value="">--Select Type--</option>
+                <option value="State">State</option>
+                <option value="District">District</option>
+                <option value="Assembly">Assembly</option>
+                <option value="Local">Local body</option>
             </select>
-        </div>
-    </div>
-    
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-p4xn+LwB4D6/uG5v5H/D1q8F5L5j7zF5+5H5+5H5/g0=" crossorigin=""></script>
-    <script>
-        // Set the timestamp immediately on page load
-        const timestampElement = document.getElementById('timestamp');
-        const now = new Date();
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const dayAbbrev = days[now.getDay()];
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        timestampElement.textContent = `${dayAbbrev}, ${hours}:${minutes}`;
+            <label>Name:</label>
+            <select class="nameSelect" disabled></select>
+            <div class="checkbox-group" style="display:none;">
+                <label><input type="checkbox" class="parentChk"> Parent</label>
+                <label><input type="checkbox" class="childrenChk"> Children</label>
+                <label><input type="checkbox" class="siblingsChk"> Siblings</label>
+            </div>
+            <label>Color:</label>
+            <input type="color" class="colorPicker" value="#000000">
+            <label>Opacity:</label>
+            <input type="range" class="opacitySlider" min="0" max="1" step="0.1" value="0.5">
+            <div style="margin-top:5px;">
+                <button class="drawBtn">Draw</button>
+                <button class="clearBtn">Clear</button>
+            </div>
+        `;
+        container.appendChild(panelDiv);
 
-        // --- Map Initialization ---
-        const map = L.map('map').setView([10.8505, 76.2711], 8);
+        const typeSelect = panelDiv.querySelector('.typeSelect');
+        const nameSelect = panelDiv.querySelector('.nameSelect');
+        const checkboxGroup = panelDiv.querySelector('.checkbox-group');
+        const drawBtn = panelDiv.querySelector('.drawBtn');
+        const clearBtn = panelDiv.querySelector('.clearBtn');
+        const colorPicker = panelDiv.querySelector('.colorPicker');
+        const opacitySlider = panelDiv.querySelector('.opacitySlider');
 
-        // Define base layers
-        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        });
+        new Choices(nameSelect, { searchEnabled:true, shouldSort:false });
 
-        const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-            maxZoom: 17,
-            attribution: 'Map data: © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: © <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
-        });
+        typeSelect.addEventListener('change', async function() {
+            const type = this.value;
+            nameSelect.innerHTML = '';
+            if(!type) { nameSelect.disabled = true; checkboxGroup.style.display='none'; return; }
+            nameSelect.disabled = false;
+            checkboxGroup.style.display='block';
 
-        const blank = L.tileLayer('');
+            // Load GeoJSON names dynamically
+            let geojsonFile = '';
+            if(type==='State') geojsonFile = 'state_v15.2.geojson';
+            else if(type==='District') geojsonFile = 'district_V15.geojson';
+            else if(type==='Assembly') geojsonFile = 'assembly_V15.geojson';
+            else if(type==='Local') geojsonFile = 'lsg_V15.geojson';
 
-        // Add default base map
-        osm.addTo(map);
-        
-        // Handle basemap selection
-        const basemapDropdown = document.getElementById('basemap-dropdown');
-        basemapDropdown.addEventListener('change', (e) => {
-            const selected = e.target.value;
-            // Remove current layer
-            map.eachLayer(layer => {
-                if (layer.options.attribution) { // Only remove base layers
-                    map.removeLayer(layer);
-                }
-            });
-            // Add new selected layer
-            if (selected === 'osm') {
-                osm.addTo(map);
-            } else if (selected === 'topo') {
-                topo.addTo(map);
-            } else if (selected === 'blank') {
-                blank.addTo(map);
-            }
-        });
-
-        const layers = {}; // Object to hold drawn layers, keyed by panel ID
-        let panelCounter = 0; // Counter for unique panel IDs
-
-        // --- Data Loading and Caching ---
-        const geojsonCache = {};
-        async function fetchGeoJSON(url) {
-            if (geojsonCache[url]) {
-                return geojsonCache[url];
-            }
-            const response = await fetch(url);
-            const data = await response.json();
-            geojsonCache[url] = data;
-            return data;
-        }
-
-        // Pre-fetch all data to ensure it's available for searches
-        Promise.all([
-            fetchGeoJSON('state_v15.2.geojson'),
-            fetchGeoJSON('district_V15.geojson'),
-            fetchGeoJSON('assembly_V15.geojson'),
-            fetchGeoJSON('lsg_V15.geojson')
-        ]).then(() => {
-            console.log("All GeoJSON data pre-fetched.");
-        });
-
-        // --- Panel Management Functions ---
-
-        function createNewPanel() {
-            panelCounter++;
-            const panelId = `panel-${panelCounter}`;
-            const panel = document.createElement('div');
-            panel.className = 'panel';
-            panel.id = panelId;
-            panel.innerHTML = `
-                <div class="panel-header">
-                    <h4>Boundary Selection</h4>
-                    <button class="remove-btn" onclick="removePanel('${panelId}')">&times;</button>
-                </div>
-                <div class="panel-controls">
-                    <div class="control-group">
-                        <label for="type-${panelId}">Type</label>
-                        <select id="type-${panelId}">
-                            <option value="">Select Type</option>
-                            <option value="State">State</option>
-                            <option value="District">District</option>
-                            <option value="Assembly">Assembly</option>
-                            <option value="Local body">Local body</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <label for="name-${panelId}">Name</label>
-                        <input type="text" id="name-${panelId}" list="options-${panelId}" disabled>
-                        <datalist id="options-${panelId}"></datalist>
-                    </div>
-                    <div class="dynamic-checkboxes" id="checkboxes-${panelId}"></div>
-                    <div class="boundary-customization">
-                        <div class="color-picker-group">
-                            <label for="color-${panelId}">Color</label>
-                            <input type="color" id="color-${panelId}" value="#000000">
-                        </div>
-                        <div class="slider-group">
-                            <label for="opacity-${panelId}">Opacity</label>
-                            <input type="range" id="opacity-${panelId}" min="0" max="1" step="0.1" value="0.5">
-                        </div>
-                    </div>
-                    <div class="action-buttons">
-                        <button class="draw-btn" onclick="drawBoundary('${panelId}')">Draw</button>
-                        <button class="clear-btn" onclick="clearBoundary('${panelId}')">Clear</button>
-                    </div>
-                </div>
-            `;
-            document.getElementById('panels-container').appendChild(panel);
-            setupPanelListeners(panelId);
-        }
-
-        function removePanel(panelId) {
-            const panel = document.getElementById(panelId);
-            if (panel) {
-                clearBoundary(panelId); // Clear any drawn boundaries first
-                panel.remove();
-            }
-        }
-
-        function setupPanelListeners(panelId) {
-            const typeSelect = document.getElementById(`type-${panelId}`);
-            const nameInput = document.getElementById(`name-${panelId}`);
-            const datalist = document.getElementById(`options-${panelId}`);
-            const checkboxesDiv = document.getElementById(`checkboxes-${panelId}`);
-
-            typeSelect.addEventListener('change', async () => {
-                const type = typeSelect.value;
-                nameInput.disabled = !type;
-                nameInput.value = '';
-                datalist.innerHTML = '';
-                checkboxesDiv.innerHTML = '';
-                
-                if (type) {
-                    const fileName = `${type.toLowerCase().replace(' ', '_')}_V15${type === 'State' ? '.2' : ''}.geojson`;
-                    const data = await fetchGeoJSON(fileName);
-                    const names = data.features.map(f => f.properties.Name).sort();
-                    names.forEach(name => {
-                        const option = document.createElement('option');
-                        option.value = name;
-                        datalist.appendChild(option);
-                    });
-                    
-                    // Add dynamic checkboxes based on type
-                    let childrenOptions = [];
-                    let parentOptions = [];
-                    let siblingOption = false;
-
-                    switch (type) {
-                        case 'State':
-                            childrenOptions = ['District', 'Assembly', 'Local body'];
-                            break;
-                        case 'District':
-                            childrenOptions = ['Assembly', 'Local body'];
-                            parentOptions = ['State'];
-                            siblingOption = true;
-                            break;
-                        case 'Assembly':
-                            childrenOptions = ['Local body'];
-                            parentOptions = ['District', 'State'];
-                            siblingOption = true;
-                            break;
-                        case 'Local body':
-                            parentOptions = ['Assembly', 'District', 'State'];
-                            siblingOption = true;
-                            break;
-                    }
-                    
-                    if (childrenOptions.length > 0) {
-                        checkboxesDiv.innerHTML += `<div>Children: ${childrenOptions.map(c => `<label><input type="checkbox" data-level="${c}" name="child-${panelId}">${c}</label>`).join('')}</div>`;
-                    }
-                    if (parentOptions.length > 0) {
-                        checkboxesDiv.innerHTML += `<div>Parents: ${parentOptions.map(p => `<label><input type="checkbox" data-level="${p}" name="parent-${panelId}">${p}</label>`).join('')}</div>`;
-                    }
-                    if (siblingOption) {
-                        checkboxesDiv.innerHTML += `<div><label><input type="checkbox" data-level="Sibling" name="sibling-${panelId}">Siblings</label></div>`;
-                    }
-                }
-            });
-        }
-
-        // --- Drawing and Clearing Functions ---
-        async function drawBoundary(panelId) {
-            const typeSelect = document.getElementById(`type-${panelId}`);
-            const nameInput = document.getElementById(`name-${panelId}`);
-            const colorInput = document.getElementById(`color-${panelId}`);
-            const opacityInput = document.getElementById(`opacity-${panelId}`);
-            const checkboxesDiv = document.getElementById(`checkboxes-${panelId}`);
-
-            const selectedType = typeSelect.value;
-            const selectedName = nameInput.value;
-            const lineColor = colorInput.value;
-            const fillOpacity = opacityInput.value;
-
-            if (!selectedType || !selectedName) {
-                alert('Please select a type and a name.');
-                return;
-            }
-
-            // Clear previous boundaries for this panel
-            clearBoundary(panelId);
-
-            const layersToDraw = [];
-            const mainLayerFileName = `${selectedType.toLowerCase().replace(' ', '_')}_V15${selectedType === 'State' ? '.2' : ''}.geojson`;
-            const mainData = await fetchGeoJSON(mainLayerFileName);
-            const mainFeature = mainData.features.find(f => f.properties.Name === selectedName);
-
-            if (mainFeature) {
-                layersToDraw.push({
-                    data: {
-                        type: 'FeatureCollection',
-                        features: [mainFeature]
-                    },
-                    level: selectedType,
-                    style: { color: lineColor, opacity: 1, weight: 3, fillOpacity: fillOpacity }
+            try {
+                const res = await fetch(geojsonFile);
+                const data = await res.json();
+                const names = data.features.map(f => f.properties.Name).filter(n=>n);
+                names.forEach(n => {
+                    const opt = document.createElement('option');
+                    opt.value = n;
+                    opt.textContent = n;
+                    nameSelect.appendChild(opt);
                 });
-            } else {
-                alert(`Could not find a feature named "${selectedName}" in the ${selectedType} data.`);
-                return;
+                nameSelect._choices?.setChoices(Array.from(nameSelect.options).map(o=>({value:o.value,label:o.textContent})), 'value', 'label', true);
+            } catch(e) {
+                console.error("Error loading GeoJSON:", e);
             }
-
-            // Checkboxes logic
-            const checkedParents = Array.from(checkboxesDiv.querySelectorAll('input[name^="parent-"]:checked')).map(cb => cb.dataset.level);
-            const checkedChildren = Array.from(checkboxesDiv.querySelectorAll('input[name^="child-"]:checked')).map(cb => cb.dataset.level);
-            const drawSiblings = checkboxesDiv.querySelector('input[name^="sibling-"]:checked');
-
-            if (checkedParents.length > 0 || checkedChildren.length > 0 || drawSiblings) {
-                const lsgData = await fetchGeoJSON('lsg_V15.geojson');
-                const relevantLsg = lsgData.features.filter(f => {
-                    const props = f.properties;
-                    switch (selectedType) {
-                        case 'District': return props.DISTRICT === selectedName;
-                        case 'Assembly': return props.ASSEMBLY === selectedName;
-                        case 'Local body': return props.Name === selectedName;
-                        default: return false;
-                    }
-                });
-                
-                // Get all related data based on the selection
-                const relatedData = {
-                    State: (await fetchGeoJSON('state_v15.2.geojson')).features,
-                    District: (await fetchGeoJSON('district_V15.geojson')).features,
-                    Assembly: (await fetchGeoJSON('assembly_V15.geojson')).features,
-                    'Local body': (await fetchGeoJSON('lsg_V15.geojson')).features
-                };
-
-                const findRelatedFeatures = (level, condition) => relatedData[level].filter(f => condition(f.properties));
-                
-                // Parents logic
-                if (checkedParents.includes('State')) {
-                    const stateFeature = findRelatedFeatures('State', p => p.Name === 'Kerala');
-                    layersToDraw.push({ data: { type: 'FeatureCollection', features: stateFeature }, level: 'State', style: { color: '#0000ff', opacity: 1, weight: 3, fill: false } });
-                }
-                if (checkedParents.includes('District') && relevantLsg.length > 0) {
-                    const districtName = relevantLsg[0].properties.DISTRICT;
-                    const districtFeatures = findRelatedFeatures('District', p => p.Name === districtName);
-                    layersToDraw.push({ data: { type: 'FeatureCollection', features: districtFeatures }, level: 'District', style: { color: '#0000ff', opacity: 1, weight: 3, fill: false } });
-                }
-                if (checkedParents.includes('Assembly') && relevantLsg.length > 0) {
-                    const assemblyName = relevantLsg[0].properties.ASSEMBLY;
-                    const assemblyFeatures = findRelatedFeatures('Assembly', p => p.Name === assemblyName);
-                    layersToDraw.push({ data: { type: 'FeatureCollection', features: assemblyFeatures }, level: 'Assembly', style: { color: '#0000ff', opacity: 1, weight: 3, fill: false } });
-                }
-
-                // Children logic
-                if (checkedChildren.includes('District')) {
-                    const districtFeatures = findRelatedFeatures('District', p => p.STATE === selectedName);
-                    layersToDraw.push({ data: { type: 'FeatureCollection', features: districtFeatures }, level: 'District', style: { color: '#ff0000', opacity: 1, weight: 2, fillOpacity: 0.1 } });
-                }
-                if (checkedChildren.includes('Assembly')) {
-                    const assemblyFeatures = findRelatedFeatures('Assembly', p => p.DISTRICT === selectedName);
-                    layersToDraw.push({ data: { type: 'FeatureCollection', features: assemblyFeatures }, level: 'Assembly', style: { color: '#ff0000', opacity: 1, weight: 2, fillOpacity: 0.1 } });
-                }
-                if (checkedChildren.includes('Local body')) {
-                    const lsgFeatures = findRelatedFeatures('Local body', p => p.ASSEMBLY === selectedName || p.DISTRICT === selectedName || p.STATE === selectedName);
-                    layersToDraw.push({ data: { type: 'FeatureCollection', features: lsgFeatures }, level: 'Local body', style: { color: '#ff0000', opacity: 1, weight: 1, fillOpacity: 0.1 } });
-                }
-
-                // Siblings logic
-                if (drawSiblings && relevantLsg.length > 0) {
-                    let siblings = [];
-                    const mainFeatureProps = mainFeature.properties;
-                    if (selectedType === 'District') {
-                        siblings = findRelatedFeatures('District', p => p.STATE === mainFeatureProps.STATE && p.Name !== mainFeatureProps.Name);
-                    } else if (selectedType === 'Assembly') {
-                        siblings = findRelatedFeatures('Assembly', p => p.DISTRICT === mainFeatureProps.DISTRICT && p.Name !== mainFeatureProps.Name);
-                    } else if (selectedType === 'Local body') {
-                        siblings = findRelatedFeatures('Local body', p => p.ASSEMBLY === mainFeatureProps.ASSEMBLY && p.Name !== mainFeatureProps.Name);
-                    }
-                    layersToDraw.push({ data: { type: 'FeatureCollection', features: siblings }, level: 'Sibling', style: { color: '#808080', opacity: 1, weight: 1, fillOpacity: 0.2 } });
-                }
-            }
-
-            // --- Layering Logic ---
-            const layerOrder = ['State', 'District', 'Assembly', 'Local body', 'Sibling'];
-            layersToDraw.sort((a, b) => layerOrder.indexOf(a.level) - layerOrder.indexOf(b.level));
-
-            // Create a layer group for this panel's boundaries
-            const layerGroup = L.layerGroup().addTo(map);
-
-            // Add layers to the group
-            layersToDraw.forEach(l => {
-                const geojsonLayer = L.geoJSON(l.data, {
-                    style: l.style,
-                    onEachFeature: function (feature, layer) {
-                        if (feature.properties && feature.properties.Name) {
-                            layer.bindPopup(feature.properties.Name);
-                        }
-                    }
-                });
-                geojsonLayer.addTo(layerGroup);
-            });
-
-            layers[panelId] = layerGroup;
-            map.fitBounds(layerGroup.getBounds());
-        }
-
-        function clearBoundary(panelId) {
-            if (layers[panelId]) {
-                map.removeLayer(layers[panelId]);
-                delete layers[panelId];
-            }
-        }
-
-        // Initialize the first panel on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            createNewPanel();
         });
 
-        // Add event listener for the '+' button
-        document.getElementById('add-panel-btn').addEventListener('click', createNewPanel);
-    </script>
+        drawBtn.addEventListener('click', async function() {
+            const type = typeSelect.value;
+            const name = nameSelect.value;
+            if(!type || !name) { alert('Select type and name'); return; }
+
+            const color = colorPicker.value;
+            const opacity = parseFloat(opacitySlider.value);
+            let geojsonFile = '';
+            if(type==='State') geojsonFile = 'state_v15.2.geojson';
+            else if(type==='District') geojsonFile = 'district_V15.geojson';
+            else if(type==='Assembly') geojsonFile = 'assembly_V15.geojson';
+            else if(type==='Local') geojsonFile = 'lsg_V15.geojson';
+
+            try {
+                const res = await fetch(geojsonFile);
+                const data = await res.json();
+                const feature = data.features.find(f=>f.properties.Name===name);
+                if(!feature) { alert('Boundary not found'); return; }
+
+                // Create layer
+                const layer = L.geoJSON(feature, {color:color, fillOpacity:opacity});
+                if(!panelLayers[panelId]) panelLayers[panelId] = [];
+                panelLayers[panelId].push(layer);
+                layer.addTo(map);
+                map.fitBounds(layer.getBounds());
+            } catch(e) { console.error(e); }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            if(panelLayers[panelId]) {
+                panelLayers[panelId].forEach(l => map.removeLayer(l));
+                panelLayers[panelId] = [];
+            }
+        });
+
+        panelDiv.querySelector('.removeBtn').addEventListener('click', () => {
+            clearBtn.click();
+            panelDiv.remove();
+        });
+    }
+
+    // Initialize first panel
+    addPanel();
+</script>
 </body>
 </html>
