@@ -4,190 +4,291 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kerala Administrative Boundaries Viewer</title>
+
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4xn+LwB4D6/uG5v/9YmXLqg+/c5T4kDjvL5u3rFtkM=" crossorigin=""/>
-    <!-- Choices.js CSS for searchable select -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
+    <link 
+        rel="stylesheet" 
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4xn+LwB4D6/uG5v3gUOqHk3T1l0XgC6Tk3F7y9g7tI="
+        crossorigin=""
+    />
+
+    <!-- Select2 CSS for searchable dropdowns -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
     <style>
-        body, html { margin:0; padding:0; height:100%; font-family: Arial, sans-serif; }
-        #container { display:flex; height:100vh; }
-        #sidebar { width: 320px; overflow-y:auto; padding:10px; background:#f9f9f9; border-right:1px solid #ccc; }
-        #map { flex:1; }
-        .panel { border:1px solid #ccc; padding:10px; margin-bottom:10px; border-radius:5px; background:#fff; }
-        .panel-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
-        .panel-header button { cursor:pointer; }
-        .checkbox-group { margin:5px 0; }
-        label { display:block; margin-bottom:3px; font-size:14px; }
-        .timestamp { position:absolute; top:10px; right:10px; background:rgba(255,255,255,0.8); padding:5px 10px; border-radius:5px; font-size:14px; z-index:1000; }
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        #container {
+            display: flex;
+            height: 100%;
+        }
+
+        #panel-container {
+            width: 350px;
+            min-width: 300px;
+            max-width: 400px;
+            background: #f5f5f5;
+            overflow-y: auto;
+            padding: 10px;
+            border-right: 1px solid #ccc;
+        }
+
+        .panel {
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            padding: 10px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .panel-body label {
+            display: block;
+            margin: 5px 0 2px;
+        }
+
+        .panel-body input[type="color"] {
+            width: 100%;
+            height: 32px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .panel-body input[type="range"] {
+            width: 100%;
+        }
+
+        .panel-body select, .panel-body input[type="text"] {
+            width: 100%;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        .panel-footer {
+            margin-top: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #map {
+            flex: 1;
+        }
+
+        #timestamp {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 1000;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+
+        .plus-btn {
+            background: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
-<div class="timestamp" id="timestamp"></div>
+
 <div id="container">
-    <div id="sidebar">
-        <button id="addPanelBtn">+ Add Panel</button>
-        <div id="panelsContainer"></div>
+    <div id="panel-container">
+        <button class="plus-btn" onclick="addPanel()">+</button>
     </div>
     <div id="map"></div>
 </div>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o9N1j96b1syZg6w1mk5a2hH1Vwx5dW2vB9f+DxPa4I8=" crossorigin=""></script>
-<!-- Choices.js for searchable select -->
-<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
-<script>
-    // Initialize map
-    const map = L.map('map').setView([10.8505, 76.2711], 7);
+<div id="timestamp"></div>
 
-    // Base maps
+<!-- Leaflet JS -->
+<script 
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-o9N1j8J0v8x8/f8ZTnE39u/5g4kK8hJw3vsy1t0GzE0="
+    crossorigin="">
+</script>
+
+<!-- jQuery for Select2 -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- Select2 JS for searchable dropdowns -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    // Map initialization
+    const map = L.map('map').setView([10.5, 76.5], 7);
     const baseMaps = {
-        "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; OpenStreetMap'}),
-        "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {maxZoom:17, attribution:'&copy; OpenTopoMap'}),
-        "Blank": L.tileLayer('', {maxZoom:19})
+        "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map),
+        "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            maxZoom: 17,
+            attribution: '© OpenTopoMap'
+        }),
+        "Blank": L.tileLayer('', {maxZoom: 19})
     };
-    baseMaps.OpenStreetMap.addTo(map);
 
     L.control.layers(baseMaps).addTo(map);
 
-    // Track layers per panel
-    let panelCounter = 0;
+    // Layer storage for each panel
     const panelLayers = {};
 
-    // Update timestamp
-    const timestampEl = document.getElementById('timestamp');
-    const now = new Date();
-    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    const pad = n => n.toString().padStart(2,'0');
-    timestampEl.textContent = `${days[now.getDay()]}, ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    // GeoJSON files mapping
+    const geojsonFiles = {
+        "State": "state_v15.2.geojson",
+        "District": "district_V15.geojson",
+        "Assembly": "assembly_V15.geojson",
+        "Local body": "lsg_V15.geojson"
+    };
 
-    // Add new panel
-    document.getElementById('addPanelBtn').addEventListener('click', () => {
-        addPanel();
-    });
+    let panelCount = 0;
 
     function addPanel() {
-        panelCounter++;
-        const panelId = `panel${panelCounter}`;
-        const container = document.getElementById('panelsContainer');
+        panelCount++;
+        const panelId = 'panel-' + panelCount;
 
-        const panelDiv = document.createElement('div');
-        panelDiv.className = 'panel';
-        panelDiv.id = panelId;
+        const panel = document.createElement('div');
+        panel.className = 'panel';
+        panel.id = panelId;
 
-        panelDiv.innerHTML = `
+        panel.innerHTML = `
             <div class="panel-header">
-                <strong>Panel ${panelCounter}</strong>
-                <button class="removeBtn">x</button>
+                <span>Panel ${panelCount}</span>
+                <button onclick="removePanel('${panelId}')">x</button>
             </div>
-            <label>Type:</label>
-            <select class="typeSelect">
-                <option value="">--Select Type--</option>
-                <option value="State">State</option>
-                <option value="District">District</option>
-                <option value="Assembly">Assembly</option>
-                <option value="Local">Local body</option>
-            </select>
-            <label>Name:</label>
-            <select class="nameSelect" disabled></select>
-            <div class="checkbox-group" style="display:none;">
-                <label><input type="checkbox" class="parentChk"> Parent</label>
-                <label><input type="checkbox" class="childrenChk"> Children</label>
-                <label><input type="checkbox" class="siblingsChk"> Siblings</label>
+            <div class="panel-body">
+                <label>Type:</label>
+                <select class="type-select" onchange="onTypeChange('${panelId}', this.value)">
+                    <option value="">Select Type</option>
+                    <option value="State">State</option>
+                    <option value="District">District</option>
+                    <option value="Assembly">Assembly</option>
+                    <option value="Local body">Local body</option>
+                </select>
+
+                <label>Name:</label>
+                <select class="name-select" disabled></select>
+
+                <div class="checkboxes" style="margin-top:5px; display:none;">
+                    <label><input type="checkbox" class="parent"> Parent</label>
+                    <label><input type="checkbox" class="children"> Children</label>
+                    <label><input type="checkbox" class="siblings"> Siblings</label>
+                </div>
+
+                <label>Boundary Color:</label>
+                <input type="color" class="color-picker" value="#000000">
+
+                <label>Transparency:</label>
+                <input type="range" class="transparency" min="0" max="1" step="0.05" value="0.5">
             </div>
-            <label>Color:</label>
-            <input type="color" class="colorPicker" value="#000000">
-            <label>Opacity:</label>
-            <input type="range" class="opacitySlider" min="0" max="1" step="0.1" value="0.5">
-            <div style="margin-top:5px;">
-                <button class="drawBtn">Draw</button>
-                <button class="clearBtn">Clear</button>
+            <div class="panel-footer">
+                <button onclick="drawBoundary('${panelId}')">Draw</button>
+                <button onclick="clearBoundary('${panelId}')">Clear</button>
             </div>
         `;
-        container.appendChild(panelDiv);
 
-        const typeSelect = panelDiv.querySelector('.typeSelect');
-        const nameSelect = panelDiv.querySelector('.nameSelect');
-        const checkboxGroup = panelDiv.querySelector('.checkbox-group');
-        const drawBtn = panelDiv.querySelector('.drawBtn');
-        const clearBtn = panelDiv.querySelector('.clearBtn');
-        const colorPicker = panelDiv.querySelector('.colorPicker');
-        const opacitySlider = panelDiv.querySelector('.opacitySlider');
-
-        new Choices(nameSelect, { searchEnabled:true, shouldSort:false });
-
-        typeSelect.addEventListener('change', async function() {
-            const type = this.value;
-            nameSelect.innerHTML = '';
-            if(!type) { nameSelect.disabled = true; checkboxGroup.style.display='none'; return; }
-            nameSelect.disabled = false;
-            checkboxGroup.style.display='block';
-
-            // Load GeoJSON names dynamically
-            let geojsonFile = '';
-            if(type==='State') geojsonFile = 'state_v15.2.geojson';
-            else if(type==='District') geojsonFile = 'district_V15.geojson';
-            else if(type==='Assembly') geojsonFile = 'assembly_V15.geojson';
-            else if(type==='Local') geojsonFile = 'lsg_V15.geojson';
-
-            try {
-                const res = await fetch(geojsonFile);
-                const data = await res.json();
-                const names = data.features.map(f => f.properties.Name).filter(n=>n);
-                names.forEach(n => {
-                    const opt = document.createElement('option');
-                    opt.value = n;
-                    opt.textContent = n;
-                    nameSelect.appendChild(opt);
-                });
-                nameSelect._choices?.setChoices(Array.from(nameSelect.options).map(o=>({value:o.value,label:o.textContent})), 'value', 'label', true);
-            } catch(e) {
-                console.error("Error loading GeoJSON:", e);
-            }
-        });
-
-        drawBtn.addEventListener('click', async function() {
-            const type = typeSelect.value;
-            const name = nameSelect.value;
-            if(!type || !name) { alert('Select type and name'); return; }
-
-            const color = colorPicker.value;
-            const opacity = parseFloat(opacitySlider.value);
-            let geojsonFile = '';
-            if(type==='State') geojsonFile = 'state_v15.2.geojson';
-            else if(type==='District') geojsonFile = 'district_V15.geojson';
-            else if(type==='Assembly') geojsonFile = 'assembly_V15.geojson';
-            else if(type==='Local') geojsonFile = 'lsg_V15.geojson';
-
-            try {
-                const res = await fetch(geojsonFile);
-                const data = await res.json();
-                const feature = data.features.find(f=>f.properties.Name===name);
-                if(!feature) { alert('Boundary not found'); return; }
-
-                // Create layer
-                const layer = L.geoJSON(feature, {color:color, fillOpacity:opacity});
-                if(!panelLayers[panelId]) panelLayers[panelId] = [];
-                panelLayers[panelId].push(layer);
-                layer.addTo(map);
-                map.fitBounds(layer.getBounds());
-            } catch(e) { console.error(e); }
-        });
-
-        clearBtn.addEventListener('click', () => {
-            if(panelLayers[panelId]) {
-                panelLayers[panelId].forEach(l => map.removeLayer(l));
-                panelLayers[panelId] = [];
-            }
-        });
-
-        panelDiv.querySelector('.removeBtn').addEventListener('click', () => {
-            clearBtn.click();
-            panelDiv.remove();
-        });
+        document.getElementById('panel-container').appendChild(panel);
     }
 
-    // Initialize first panel
+    function removePanel(id) {
+        clearBoundary(id);
+        document.getElementById(id).remove();
+    }
+
+    function onTypeChange(panelId, type) {
+        const panel = document.getElementById(panelId);
+        const nameSelect = panel.querySelector('.name-select');
+        const checkboxesDiv = panel.querySelector('.checkboxes');
+
+        if (!type) {
+            nameSelect.disabled = true;
+            $(nameSelect).empty();
+            checkboxesDiv.style.display = 'none';
+            return;
+        }
+
+        // Load names from GeoJSON
+        fetch(geojsonFiles[type])
+            .then(res => res.json())
+            .then(data => {
+                const names = data.features.map(f => f.properties.Name).filter(n => n);
+                $(nameSelect).empty().select2({data: names, width: '100%'});
+                nameSelect.disabled = false;
+            });
+
+        // Show checkboxes
+        checkboxesDiv.style.display = 'block';
+    }
+
+    function drawBoundary(panelId) {
+        const panel = document.getElementById(panelId);
+        const type = panel.querySelector('.type-select').value;
+        const name = panel.querySelector('.name-select').value;
+        const color = panel.querySelector('.color-picker').value;
+        const opacity = parseFloat(panel.querySelector('.transparency').value);
+        const parents = panel.querySelector('.parent').checked;
+        const children = panel.querySelector('.children').checked;
+        const siblings = panel.querySelector('.siblings').checked;
+
+        if (!type || !name) {
+            alert('Select type and name first');
+            return;
+        }
+
+        // Clear existing
+        clearBoundary(panelId);
+
+        // Load GeoJSON
+        fetch(geojsonFiles[type])
+            .then(res => res.json())
+            .then(data => {
+                const features = data.features.filter(f => f.properties.Name === name);
+                const layer = L.geoJSON(features, {
+                    style: { color: color, fillOpacity: opacity }
+                }).addTo(map);
+
+                panelLayers[panelId] = layer;
+                map.fitBounds(layer.getBounds());
+            });
+    }
+
+    function clearBoundary(panelId) {
+        if (panelLayers[panelId]) {
+            map.removeLayer(panelLayers[panelId]);
+            delete panelLayers[panelId];
+        }
+    }
+
+    // Initialize with first panel
     addPanel();
+
+    // Set timestamp
+    const timestampDiv = document.getElementById('timestamp');
+    const now = new Date();
+    const dayAbbrev = now.toLocaleDateString('en-US', { weekday: 'short' });
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    timestampDiv.innerText = `${dayAbbrev}, ${hours}:${minutes}`;
 </script>
 </body>
 </html>
