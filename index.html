@@ -1,227 +1,495 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>q Kerala Administrative Boundaries Viewer</title>
-  
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <style>
-    body, html { margin: 0; padding: 0; height: 100%; font-family: Arial, sans-serif; }
-    #map { position: absolute; top: 0; bottom: 0; right: 0; left: 300px; }
-    #panel-container { position: absolute; top: 0; bottom: 0; left: 0; width: 300px; background: #f7f7f7; border-right: 1px solid #ccc; overflow-y: auto; padding: 10px; }
-    .panel { background: #fff; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
-    .panel h3 { margin: 0 0 10px 0; font-size: 16px; }
-    .panel label { display: block; margin-top: 5px; }
-    .panel select, .panel input[type=text], .panel input[type=color], .panel input[type=range] { width: 100%; }
-    .panel button { margin-top: 5px; width: 48%; }
-    .panel .button-group { display: flex; justify-content: space-between; }
-    .add-panel-btn { display: block; margin: 10px auto; padding: 5px 10px; cursor: pointer; }
-  </style>
+    <meta charset="UTF-8">
+    <title>Kerala Administrative Boundaries Viewer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+            display: flex;
+            background-color: #f5f5f5;
+        }
+        #panel-container {
+            width: 300px;
+            padding: 20px;
+            background-color: #f0f0f0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+        .input-panel {
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .input-panel h3 {
+            margin-top: 0;
+            font-size: 1.2em;
+            color: #333;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .controls label {
+            font-weight: bold;
+            color: #555;
+        }
+        .controls select,
+        .controls input[type="color"],
+        .controls input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        .controls input[type="color"] {
+            height: 40px;
+            padding: 2px;
+        }
+        .controls button {
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        .draw-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .draw-btn:hover {
+            background-color: #45a049;
+        }
+        .clear-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        .clear-btn:hover {
+            background-color: #da190b;
+        }
+        .checkbox-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding: 5px;
+            border: 1px dashed #ddd;
+            border-radius: 4px;
+            background-color: #fafafa;
+        }
+        .checkbox-container div {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .checkbox-container input[type="checkbox"] {
+            width: auto;
+        }
+        #map-container {
+            flex-grow: 1;
+            position: relative;
+        }
+        #mapid {
+            width: 100%;
+            height: 100vh;
+        }
+        .add-panel-btn {
+            margin-top: 15px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 24px;
+            color: #555;
+            padding: 10px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .add-panel-btn:hover {
+            color: #333;
+            border-color: #999;
+        }
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+    </style>
 </head>
 <body>
 
 <div id="panel-container">
-  <button class="add-panel-btn" onclick="addPanel()">+ Add Panel</button>
-</div>
-<div id="map"></div>
+    <div class="input-panel" id="panel-1">
+        <h3>Boundary Selection</h3>
+        <div class="controls">
+            <label for="boundary-type-1">Type of Boundary:</label>
+            <select id="boundary-type-1" class="boundary-type-select">
+                <option value="">--Select Type--</option>
+                <option value="state">State</option>
+                <option value="district">District</option>
+                <option value="assembly">Assembly</option>
+                <option value="lsg">Local Body</option>
+            </select>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<!-- Leaflet Search for searchable dropdowns -->
-<script src="https://unpkg.com/leaflet-search@3.0.2/dist/leaflet-search.src.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-search@3.0.2/dist/leaflet-search.min.css"/>
+            <label for="boundary-name-1">Select Name:</label>
+            <select id="boundary-name-1" class="boundary-name-select" disabled>
+                <option value="">--Select Name--</option>
+            </select>
+
+            <div class="checkbox-container" id="checkboxes-1">
+                </div>
+
+            <label for="outline-color-1">Outline Color:</label>
+            <input type="color" id="outline-color-1" class="outline-color-picker" value="#000000">
+
+            <label for="fill-opacity-1">Fill Opacity: <span id="opacity-value-1">50%</span></label>
+            <input type="range" id="fill-opacity-1" class="fill-opacity-slider" min="0" max="1" step="0.1" value="0.5">
+
+            <button class="draw-btn">Draw</button>
+            <button class="clear-btn">Clear</button>
+        </div>
+    </div>
+    <div class="add-panel-btn" id="add-panel-btn">+ Add Panel</div>
+</div>
+
+<div id="map-container">
+    <div id="mapid"></div>
+    <div class="info-panel">
+        <p>Base Map: <span id="base-map-name">OpenStreetMap</span></p>
+    </div>
+</div>
 
 <script>
-let map = L.map('map').setView([10.8505, 76.2711], 7);
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- Map Initialization ---
+        const map = L.map('mapid').setView([10.5, 76.2], 8);
+        const infoPanel = document.getElementById('base-map-name');
 
-// Base maps
-let baseMaps = {
-  "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map),
-  "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 }),
-  "Blank": L.tileLayer('', { maxZoom: 19 })
-};
-L.control.layers(baseMaps).addTo(map);
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        });
 
-// Store GeoJSON data
-let geojsonData = {};
-const geojsonFiles = {
-  "State": "state_v15.2.geojson",
-  "District": "district_V15.geojson",
-  "Assembly": "assembly_V15.geojson",
-  "Local body": "lsg_V15.geojson"
-};
+        const openTopoMap = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)'
+        });
 
-// Load GeoJSON files
-for (let type in geojsonFiles) {
-  fetch(geojsonFiles[type])
-    .then(res => res.json())
-    .then(data => { geojsonData[type] = data; })
-    .catch(err => console.error(`Error loading ${type} data:`, err));
-}
+        const blankLayer = L.tileLayer('', {
+            attribution: 'No base map'
+        });
 
-// Store drawn layers per panel
-let panelLayers = [];
+        osm.addTo(map);
 
-// Panel counter
-let panelCount = 0;
+        const baseMaps = {
+            "OpenStreetMap": osm,
+            "OpenTopoMap": openTopoMap,
+            "Blank": blankLayer
+        };
 
-// Panel creation function
-function addPanel() {
-  panelCount++;
-  const panelContainer = document.getElementById('panel-container');
-  
-  const panel = document.createElement('div');
-  panel.className = 'panel';
-  panel.id = `panel-${panelCount}`;
-  panel.innerHTML = `
-    <h3>Panel ${panelCount}</h3>
-    <label>Type:</label>
-    <select onchange="onTypeChange(${panelCount}, this.value)">
-      <option value="">Select Type</option>
-      <option>State</option>
-      <option>District</option>
-      <option>Assembly</option>
-      <option>Local body</option>
-    </select>
-    <label>Name:</label>
-    <input type="text" id="name-${panelCount}" disabled placeholder="Select Type First"/>
-    <div id="checkboxes-${panelCount}" style="display:none;">
-      <label><input type="checkbox" id="parent-${panelCount}"> Parent(s)</label>
-      <label><input type="checkbox" id="children-${panelCount}"> Children</label>
-      <label><input type="checkbox" id="siblings-${panelCount}"> Siblings</label>
-    </div>
-    <label>Boundary Color:</label>
-    <input type="color" id="color-${panelCount}" value="#000000"/>
-    <label>Fill Transparency:</label>
-    <input type="range" id="opacity-${panelCount}" min="0" max="1" step="0.1" value="0.5"/>
-    <div class="button-group">
-      <button onclick="drawBoundary(${panelCount})">Draw</button>
-      <button onclick="clearBoundary(${panelCount})">Clear</button>
-    </div>
-  `;
-  
-  panelContainer.appendChild(panel);
-}
+        const layerControl = L.control.layers(baseMaps).addTo(map);
 
-// Type change handler
-function onTypeChange(panelId, type) {
-  const nameInput = document.getElementById(`name-${panelId}`);
-  const checkboxDiv = document.getElementById(`checkboxes-${panelId}`);
-  
-  if (!type) {
-    nameInput.disabled = true;
-    checkboxDiv.style.display = 'none';
-    return;
-  }
-  
-  nameInput.disabled = false;
-  checkboxDiv.style.display = 'block';
-  
-  // Auto-complete for name input
-  const names = geojsonData[type] ? geojsonData[type].features.map(f => f.properties.Name) : [];
-  nameInput.setAttribute('list', `list-${panelId}`);
-  if (!document.getElementById(`list-${panelId}`)) {
-    const datalist = document.createElement('datalist');
-    datalist.id = `list-${panelId}`;
-    panel.appendChild(datalist);
-  }
-  const datalist = document.getElementById(`list-${panelId}`);
-  datalist.innerHTML = names.map(n => `<option value="${n}">`).join('');
-}
+        map.on('baselayerchange', function(e) {
+            infoPanel.textContent = e.name;
+        });
 
-// Draw boundary
-function drawBoundary(panelId) {
-  const panel = document.getElementById(`panel-${panelId}`);
-  const type = panel.querySelector('select').value;
-  const name = panel.querySelector(`#name-${panelId}`).value;
-  const color = panel.querySelector(`#color-${panelId}`).value;
-  const opacity = parseFloat(panel.querySelector(`#opacity-${panelId}`).value);
-  const showParent = panel.querySelector(`#parent-${panelId}`).checked;
-  const showChildren = panel.querySelector(`#children-${panelId}`).checked;
-  const showSiblings = panel.querySelector(`#siblings-${panelId}`).checked;
+        const dataCache = {};
+        const fileNames = {
+            state: 'state_v15.2.geojson',
+            district: 'district_V15.geojson',
+            assembly: 'assembly_V15.geojson',
+            lsg: 'lsg_V15.geojson'
+        };
 
-  if (!geojsonData[type]) { alert("Data not loaded yet"); return; }
-  
-  // Find main feature
-  let mainFeature = geojsonData[type].features.find(f => f.properties.Name === name);
-  if (!mainFeature) { alert("Feature not found"); return; }
-  
-  let layersToAdd = [];
-  
-  // Helper function to add feature to layers
-  function addFeatureLayer(feature, layerType) {
-    const layer = L.geoJSON(feature, { style: { color: color, fillOpacity: opacity } }).addTo(map);
-    layersToAdd.push(layer);
-  }
-  
-  // Draw selected feature
-  addFeatureLayer(mainFeature, type);
-  
-  // Hierarchy logic
-  if (showParent || showChildren || showSiblings) {
-    // Example logic for parents/children/siblings
-    const lsgData = geojsonData["Local body"];
-    const assemblyData = geojsonData["Assembly"];
-    const districtData = geojsonData["District"];
-    const stateData = geojsonData["State"];
-    
-    if (type === "State") {
-      if (showChildren) {
-        // Draw all districts/assemblies/lsg within the state
-        if (districtData) districtData.features.forEach(f => addFeatureLayer(f, "District"));
-        if (assemblyData) assemblyData.features.forEach(f => addFeatureLayer(f, "Assembly"));
-        if (lsgData) lsgData.features.forEach(f => addFeatureLayer(f, "Local body"));
-      }
-    }
-    if (type === "District") {
-      if (showParent && stateData) stateData.features.forEach(f => addFeatureLayer(f, "State"));
-      if (showChildren) {
-        if (assemblyData) assemblyData.features.forEach(f => addFeatureLayer(f, "Assembly"));
-        if (lsgData) lsgData.features.forEach(f => addFeatureLayer(f, "Local body"));
-      }
-      if (showSiblings && districtData) districtData.features.forEach(f => {
-        if (f.properties.Name !== name) addFeatureLayer(f, "District");
-      });
-    }
-    if (type === "Assembly") {
-      if (showParent) {
-        if (districtData) districtData.features.forEach(f => addFeatureLayer(f, "District"));
-        if (stateData) stateData.features.forEach(f => addFeatureLayer(f, "State"));
-      }
-      if (showChildren && lsgData) lsgData.features.forEach(f => addFeatureLayer(f, "Local body"));
-      if (showSiblings && assemblyData) assemblyData.features.forEach(f => {
-        if (f.properties.Name !== name) addFeatureLayer(f, "Assembly");
-      });
-    }
-    if (type === "Local body") {
-      if (showParent) {
-        if (assemblyData) assemblyData.features.forEach(f => addFeatureLayer(f, "Assembly"));
-        if (districtData) districtData.features.forEach(f => addFeatureLayer(f, "District"));
-        if (stateData) stateData.features.forEach(f => addFeatureLayer(f, "State"));
-      }
-      if (showSiblings && lsgData) lsgData.features.forEach(f => {
-        if (f.properties.Name !== name) addFeatureLayer(f, "Local body");
-      });
-    }
-  }
-  
-  // Save layers for this panel
-  panelLayers[panelId] = layersToAdd;
-}
+        const panelLayers = {};
+        let panelCount = 1;
 
-// Clear boundary
-function clearBoundary(panelId) {
-  if (panelLayers[panelId]) {
-    panelLayers[panelId].forEach(l => map.removeLayer(l));
-    panelLayers[panelId] = [];
-  }
-}
+        // --- Data Fetching and Caching ---
+        async function fetchData(type) {
+            if (dataCache[type]) {
+                return dataCache[type];
+            }
+            const response = await fetch(fileNames[type]);
+            const data = await response.json();
+            dataCache[type] = data;
+            return data;
+        }
 
-// Initialize first panel on load
-addPanel();
+        // --- Core Drawing Logic ---
+        const layerZIndices = {
+            state: 10,
+            district: 20,
+            assembly: 30,
+            lsg: 40
+        };
 
+        async function drawBoundary(type, name, options, panelId) {
+            const data = await fetchData(type);
+            const feature = data.features.find(f => f.properties.Name === name);
+            if (!feature) return;
+
+            const geojsonLayer = L.geoJSON(feature, {
+                style: () => ({
+                    fillColor: options.outlineColor,
+                    fillOpacity: options.fillOpacity,
+                    color: options.outlineColor,
+                    weight: options.isMain ? 3 : 1.5,
+                    opacity: 1
+                }),
+                onEachFeature: (feature, layer) => {
+                    let popupContent = `<b>${feature.properties.Name}</b><br>Type: ${type}`;
+                    if (feature.properties.District) popupContent += `<br>District: ${feature.properties.District}`;
+                    if (feature.properties.Assembly) popupContent += `<br>Assembly: ${feature.properties.Assembly}`;
+                    layer.bindPopup(popupContent);
+                }
+            }).addTo(map);
+
+            geojsonLayer.eachLayer(layer => {
+                layer.setZIndex(layerZIndices[type]);
+            });
+
+            panelLayers[panelId].push(geojsonLayer);
+            map.fitBounds(geojsonLayer.getBounds());
+        }
+
+        // --- Related Boundaries Logic ---
+        async function drawRelatedBoundaries(type, name, relation, options, panelId) {
+            const data = await fetchData(type);
+            const selectedFeature = data.features.find(f => f.properties.Name === name);
+            if (!selectedFeature) return;
+
+            let relatedFeatures = [];
+            const lsgData = await fetchData('lsg');
+            const districtData = await fetchData('district');
+            const assemblyData = await fetchData('assembly');
+            
+            let relatedType = '';
+
+            switch (relation) {
+                case 'districts':
+                case 'assemblies':
+                case 'local bodies':
+                case 'children':
+                    relatedFeatures = await getChildren(type, name, lsgData, assemblyData, districtData);
+                    relatedType = relation.replace('s', ''); // e.g., 'districts' -> 'district'
+                    break;
+                case 'parents':
+                    relatedFeatures = getParents(type, selectedFeature, lsgData, assemblyData, districtData);
+                    relatedType = relatedFeatures.length > 0 ? relatedFeatures[0].type : '';
+                    break;
+                case 'siblings':
+                    relatedFeatures = getSiblings(type, selectedFeature, data.features, lsgData);
+                    relatedType = type;
+                    break;
+            }
+
+            for (const feature of relatedFeatures) {
+                const geojsonLayer = L.geoJSON(feature, {
+                    style: () => ({
+                        fillColor: options.outlineColor,
+                        fillOpacity: options.fillOpacity,
+                        color: options.outlineColor,
+                        weight: 1,
+                        opacity: 1
+                    }),
+                    onEachFeature: (f, layer) => {
+                        layer.bindPopup(`<b>${f.properties.Name}</b><br>Type: ${relatedType}<br>Relation: ${relation}`);
+                    }
+                }).addTo(map);
+
+                geojsonLayer.eachLayer(layer => {
+                    layer.setZIndex(layerZIndices[relatedType]);
+                });
+                panelLayers[panelId].push(geojsonLayer);
+            }
+        }
+        
+        async function getChildren(type, name, lsgData, assemblyData, districtData) {
+            switch(type) {
+                case 'state':
+                    const allFeatures = [];
+                    allFeatures.push(...districtData.features);
+                    allFeatures.push(...assemblyData.features);
+                    allFeatures.push(...lsgData.features);
+                    return allFeatures;
+                case 'district':
+                    const districtChildren = [];
+                    districtChildren.push(...assemblyData.features.filter(f => f.properties.District === name));
+                    districtChildren.push(...lsgData.features.filter(f => f.properties.District === name));
+                    return districtChildren;
+                case 'assembly':
+                    return lsgData.features.filter(f => f.properties.Assembly === name);
+                default:
+                    return [];
+            }
+        }
+        
+        function getParents(type, feature, lsgData, assemblyData, districtData) {
+            const parents = [];
+            if (feature.properties.District) {
+                const district = districtData.features.find(f => f.properties.Name === feature.properties.District);
+                if (district) parents.push({ ...district, type: 'district' });
+            }
+            if (feature.properties.Assembly) {
+                const assembly = assemblyData.features.find(f => f.properties.Name === feature.properties.Assembly);
+                if (assembly) parents.push({ ...assembly, type: 'assembly' });
+            }
+            // State is always a parent for District, Assembly, and LSG
+            if (type !== 'state') {
+                const state = dataCache.state.features[0]; // Assuming only one state feature
+                parents.push({ ...state, type: 'state' });
+            }
+            return parents;
+        }
+
+        function getSiblings(type, feature, allData, lsgData) {
+            switch(type) {
+                case 'district':
+                    return allData.filter(f => f.properties.Name !== feature.properties.Name);
+                case 'assembly':
+                    const parentDistrict = feature.properties.District;
+                    return allData.filter(f => f.properties.District === parentDistrict && f.properties.Name !== feature.properties.Name);
+                case 'lsg':
+                    const parentAssembly = feature.properties.Assembly;
+                    return allData.filter(f => f.properties.Assembly === parentAssembly && f.properties.Name !== feature.properties.Name);
+                default:
+                    return [];
+            }
+        }
+
+        // --- Dynamic Panel UI Logic ---
+        function updateCheckboxes(panel, type) {
+            const checkboxContainer = panel.querySelector('.checkbox-container');
+            checkboxContainer.innerHTML = '';
+            const checkboxes = {
+                state: ['Children (Districts)', 'Children (Assemblies)', 'Children (Local bodies)'],
+                district: ['Parents (State)', 'Children (Assemblies)', 'Children (Local bodies)', 'Siblings'],
+                assembly: ['Parents (District)', 'Parents (State)', 'Children (Local bodies)', 'Siblings'],
+                lsg: ['Parents (Assembly)', 'Parents (District)', 'Parents (State)', 'Siblings']
+            };
+
+            if (type && checkboxes[type]) {
+                checkboxes[type].forEach(label => {
+                    const div = document.createElement('div');
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.value = label.includes('(') ? label.split('(')[0].trim().toLowerCase() : label.toLowerCase();
+                    const labelEl = document.createElement('label');
+                    labelEl.textContent = label;
+                    div.appendChild(input);
+                    div.appendChild(labelEl);
+                    checkboxContainer.appendChild(div);
+                });
+            }
+        }
+        
+        // --- Panel Setup and Event Listeners ---
+        function setupPanelListeners(panel, panelId) {
+            const boundaryTypeSelect = panel.querySelector('.boundary-type-select');
+            const boundaryNameSelect = panel.querySelector('.boundary-name-select');
+            const drawBtn = panel.querySelector('.draw-btn');
+            const clearBtn = panel.querySelector('.clear-btn');
+            const outlineColorPicker = panel.querySelector('.outline-color-picker');
+            const fillOpacitySlider = panel.querySelector('.fill-opacity-slider');
+            const opacityValueSpan = panel.querySelector(`#opacity-value-${panelId}`);
+
+            panelLayers[panelId] = [];
+
+            boundaryTypeSelect.addEventListener('change', async (e) => {
+                const type = e.target.value;
+                boundaryNameSelect.innerHTML = '<option value="">--Select Name--</option>';
+                if (type) {
+                    boundaryNameSelect.disabled = false;
+                    const data = await fetchData(type);
+                    const sortedFeatures = data.features.sort((a, b) => a.properties.Name.localeCompare(b.properties.Name));
+                    sortedFeatures.forEach(feature => {
+                        const option = document.createElement('option');
+                        option.value = feature.properties.Name;
+                        option.textContent = feature.properties.Name;
+                        boundaryNameSelect.appendChild(option);
+                    });
+                    updateCheckboxes(panel, type);
+                } else {
+                    boundaryNameSelect.disabled = true;
+                    updateCheckboxes(panel, null);
+                }
+            });
+            
+            fillOpacitySlider.addEventListener('input', (e) => {
+                opacityValueSpan.textContent = `${Math.round(e.target.value * 100)}%`;
+            });
+
+            drawBtn.addEventListener('click', async () => {
+                const type = boundaryTypeSelect.value;
+                const name = boundaryNameSelect.value;
+                if (!type || !name) return;
+
+                const outlineColor = outlineColorPicker.value;
+                const fillOpacity = fillOpacitySlider.value;
+
+                if (panelLayers[panelId]) {
+                    panelLayers[panelId].forEach(layer => map.removeLayer(layer));
+                }
+                panelLayers[panelId] = [];
+
+                await drawBoundary(type, name, { outlineColor, fillOpacity, isMain: true }, panelId);
+                
+                const checkboxes = panel.querySelectorAll('.checkbox-container input[type="checkbox"]');
+                for (const checkbox of checkboxes) {
+                    if (checkbox.checked) {
+                        await drawRelatedBoundaries(type, name, checkbox.value, { outlineColor, fillOpacity, isMain: false }, panelId);
+                    }
+                }
+            });
+
+            clearBtn.addEventListener('click', () => {
+                if (panelLayers[panelId]) {
+                    panelLayers[panelId].forEach(layer => map.removeLayer(layer));
+                    delete panelLayers[panelId];
+                }
+            });
+        }
+
+        // Initial setup for the first panel
+        setupPanelListeners(document.getElementById('panel-1'), 1);
+
+        // Add Panel Button
+        document.getElementById('add-panel-btn').addEventListener('click', () => {
+            panelCount++;
+            const originalPanel = document.getElementById('panel-1');
+            const newPanel = originalPanel.cloneNode(true);
+            newPanel.id = `panel-${panelCount}`;
+            newPanel.querySelector('h3').textContent = `Boundary Selection (${panelCount})`;
+            
+            const newInputs = newPanel.querySelectorAll('select, input, button');
+            newInputs.forEach(input => {
+                if (input.id) {
+                    input.id = input.id.replace('-1', `-${panelCount}`);
+                }
+            });
+            newPanel.querySelector('.boundary-name-select').disabled = true;
+            newPanel.querySelector('.checkbox-container').innerHTML = '';
+            newPanel.querySelector('.fill-opacity-slider').value = '0.5';
+            newPanel.querySelector('.outline-color-picker').value = '#000000';
+            newPanel.querySelector(`#opacity-value-1`).id = `opacity-value-${panelCount}`;
+
+            document.getElementById('panel-container').insertBefore(newPanel, document.getElementById('add-panel-btn'));
+            setupPanelListeners(newPanel, panelCount);
+        });
+    });
 </script>
+
 </body>
 </html>
