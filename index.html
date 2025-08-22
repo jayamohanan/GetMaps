@@ -1,339 +1,909 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>q Kerala Administrative Boundaries Viewer</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>d Kerala Administrative Boundaries Viewer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- Custom CSS -->
-  <style>
-    body, html {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      font-family: Arial, sans-serif;
-      display: flex;
-    }
-    #sidebar {
-      width: 340px;
-      min-width: 320px;
-      max-width: 350px;
-      background: #f9f9f9;
-      border-right: 1px solid #ccc;
-      padding: 10px;
-      overflow-y: auto;
-    }
-    #map {
-      flex: 1;
-      min-width: 400px;
-      height: 100vh;
-    }
-    .panel {
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      padding: 10px;
-      margin-bottom: 15px;
-      background: #fff;
-    }
-    .panel h4 {
-      margin: 0 0 10px 0;
-      font-size: 16px;
-    }
-    .form-group {
-      margin-bottom: 10px;
-    }
-    select, input[type="text"] {
-      width: 100%;
-      padding: 6px;
-      font-size: 14px;
-    }
-    .checkbox-group {
-      margin: 8px 0;
-    }
-    .btn {
-      display: inline-block;
-      padding: 6px 10px;
-      margin-right: 5px;
-      font-size: 14px;
-      cursor: pointer;
-      border: 1px solid #aaa;
-      border-radius: 4px;
-      background: #eee;
-    }
-    .btn:hover {
-      background: #ddd;
-    }
-    #addPanelBtn {
-      width: 100%;
-      margin-top: 10px;
-      background: #007bff;
-      color: #fff;
-      border: none;
-    }
-    .spinner {
-      display: none;
-      width: 16px;
-      height: 16px;
-      border: 2px solid #ccc;
-      border-top: 2px solid #333;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin-left: 5px;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    /* Mobile responsiveness */
-    @media (max-width: 768px) {
-      body {
-        flex-direction: column;
-      }
-      #sidebar {
-        width: 100%;
-        max-width: 100%;
-        border-right: none;
-        border-bottom: 1px solid #ccc;
-      }
-      #map {
-        height: calc(100vh - 300px);
-      }
-    }
-    /* Error popup */
-    .popup {
-      position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      background: #fff;
-      border: 2px solid #444;
-      padding: 20px;
-      z-index: 2000;
-      display: none;
-    }
-    .popup button {
-      margin-top: 10px;
-      padding: 6px 12px;
-    }
-  </style>
+        body {
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 350px;
+            background-color: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            overflow-y: auto;
+            padding: 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        .base-map-control {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .panel {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .panel-title {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .close-panel {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .close-panel:hover {
+            background: #c82333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-group select:disabled,
+        .form-group input:disabled {
+            background-color: #e9ecef;
+            cursor: not-allowed;
+        }
+
+        .search-dropdown {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+
+        .dropdown-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ced4da;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .dropdown-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f8f9fa;
+        }
+
+        .dropdown-item:hover {
+            background-color: #e9ecef;
+        }
+
+        .dropdown-item.no-matches {
+            color: #6c757d;
+            cursor: default;
+        }
+
+        .dropdown-item.no-matches:hover {
+            background-color: white;
+        }
+
+        .checkbox-group {
+            margin-bottom: 15px;
+        }
+
+        .checkbox-group h4 {
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .checkbox-item input {
+            margin-right: 8px;
+            width: auto;
+        }
+
+        .checkbox-item label {
+            margin-bottom: 0;
+            font-weight: normal;
+            cursor: pointer;
+        }
+
+        .color-transparency-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .color-group {
+            flex: 1;
+        }
+
+        .transparency-group {
+            flex: 1;
+        }
+
+        .color-input {
+            width: 100%;
+            height: 40px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .transparency-slider {
+            width: 100%;
+        }
+
+        .transparency-value {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background-color: #545b62;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .add-panel-btn {
+            width: 100%;
+            padding: 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .add-panel-btn:hover {
+            background-color: #218838;
+        }
+
+        .error-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10000;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .error-popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+        }
+
+        .error-message {
+            margin-bottom: 15px;
+            color: #721c24;
+            background-color: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9998;
+            display: none;
+        }
+
+        .loading-message {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            font-size: 16px;
+        }
+
+        .loading-message .loading-spinner {
+            display: block;
+            width: 24px;
+            height: 24px;
+            margin-right: 12px;
+        }
+
+        /* Mobile Styles */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                top: 0;
+                left: 0;
+                height: 100%;
+                width: 100%;
+                z-index: 1000;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .mobile-toggle {
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                z-index: 1001;
+                background: white;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                padding: 8px 12px;
+                cursor: pointer;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            }
+
+            .color-transparency-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
 </head>
 <body>
-  <div id="sidebar">
-    <div id="panels"></div>
-    <button id="addPanelBtn" class="btn">+ Add New Panel</button>
-  </div>
-  <div id="map"></div>
-
-  <!-- Error popup -->
-  <div id="errorPopup" class="popup">
-    <div id="errorMessage"></div>
-    <button onclick="closePopup()">OK</button>
-  </div>
-
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <script>
-    // ===== Map Setup =====
-    const map = L.map('map').setView([10.8505, 76.2711], 7);
-
-    const baseMaps = {
-      "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
-      "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'),
-      "Blank": L.tileLayer('', { attribution: '' })
-    };
-
-    baseMaps.OpenStreetMap.addTo(map);
-    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
-
-    // ===== Global State =====
-    const geojsonFiles = {
-      "State": "state_V17.geojson",
-      "District": "district_V17.geojson",
-      "Assembly": "assembly_V17.geojson",
-      "Local body": "lsg_V17.geojson"
-    };
-
-    const cachedData = {};   // cache loaded GeoJSON
-    const panelCount = { value: 0 };
-    const drawnLayers = {};  // store drawn layers per panel
-
-    // ===== Utility: Load GeoJSON with error handling =====
-    async function loadGeoJSON(file) {
-      if (cachedData[file]) return cachedData[file];
-      try {
-        const response = await fetch(file);
-        if (!response.ok) throw new Error(`Data file ${file} not found`);
-        const data = await response.json();
-        cachedData[file] = data;
-        return data;
-      } catch (err) {
-        showPopup(err.message);
-        return { type: "FeatureCollection", features: [] };
-      }
-    }
-
-    // ===== Panel Creation =====
-    function createPanel() {
-      panelCount.value++;
-      const panelId = panelCount.value;
-      const panel = document.createElement('div');
-      panel.className = 'panel';
-      panel.dataset.panelId = panelId;
-      panel.innerHTML = `
-        <h4>Panel ${panelId}</h4>
-        <div class="form-group">
-          <label>Type:</label>
-          <select class="typeSelect">
-            <option value="">-- Select Type --</option>
-            <option>State</option>
-            <option>District</option>
-            <option>Assembly</option>
-            <option>Local body</option>
-          </select>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-message">
+            <div class="loading-spinner"></div>
+            Loading map data...
         </div>
-        <div class="form-group">
-          <label>Name:</label>
-          <input type="text" class="nameInput" placeholder="Search name..." disabled>
-          <div class="nameDropdown"></div>
-        </div>
-        <div class="checkbox-group"></div>
-        <div class="form-group">
-          <label>Boundary Color:</label>
-          <input type="color" class="colorPicker" value="#000000">
-        </div>
-        <div class="form-group">
-          <label>Transparency:</label>
-          <input type="range" class="transparencySlider" min="0" max="100" value="0">
-        </div>
-        <div class="form-group">
-          <button class="btn drawBtn">Draw <div class="spinner"></div></button>
-          <button class="btn clearBtn">Clear</button>
-        </div>
-      `;
-      document.getElementById('panels').appendChild(panel);
+    </div>
 
-      setupPanelEvents(panel, panelId);
-    }
+    <div class="container">
+        <div class="sidebar" id="sidebar">
+            <h1>Kerala Administrative Boundaries</h1>
+            <div id="panelsContainer"></div>
+            <button class="add-panel-btn" onclick="addNewPanel()">+ Add New Panel</button>
+        </div>
 
-    // ===== Setup Events =====
-    function setupPanelEvents(panel, panelId) {
-      const typeSelect = panel.querySelector('.typeSelect');
-      const nameInput = panel.querySelector('.nameInput');
-      const nameDropdown = panel.querySelector('.nameDropdown');
-      const drawBtn = panel.querySelector('.drawBtn');
-      const spinner = panel.querySelector('.spinner');
-      const clearBtn = panel.querySelector('.clearBtn');
+        <div class="map-container">
+            <button class="mobile-toggle" id="mobileToggle" onclick="toggleSidebar()">☰ Menu</button>
+            <div class="base-map-control">
+                <select id="baseMapSelect" onchange="changeBaseMap()">
+                    <option value="osm">OpenStreetMap</option>
+                    <option value="topo">OpenTopoMap</option>
+                    <option value="blank">Blank</option>
+                </select>
+            </div>
+            <div id="map"></div>
+        </div>
+    </div>
 
-      // Type selection → enable name input
-      typeSelect.addEventListener('change', async () => {
-        const type = typeSelect.value;
-        nameInput.value = '';
-        nameInput.disabled = !type;
-        nameDropdown.innerHTML = '';
-        if (type) {
-          const data = await loadGeoJSON(geojsonFiles[type]);
-          const names = data.features.map(f => f.properties.Name);
-          populateNameDropdown(names, nameDropdown, nameInput);
-        }
-      });
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Global variables
+        let map;
+        let geoJsonData = {
+            state: null,
+            district: null,
+            assembly: null,
+            lsg: null
+        };
+        let baseMaps = {};
+        let currentBaseMap = 'osm';
+        let panelCounter = 0;
+        let panelLayers = {};
 
-      // Live search filtering
-      nameInput.addEventListener('input', () => {
-        const items = [...nameDropdown.querySelectorAll('div')];
-        const query = nameInput.value.toLowerCase();
-        let matches = 0;
-        items.forEach(item => {
-          if (item.textContent.toLowerCase().includes(query)) {
-            item.style.display = '';
-            matches++;
-          } else {
-            item.style.display = 'none';
-          }
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMap();
+            loadGeoJsonData();
+            createInitialPanel();
         });
-        if (matches === 0) {
-          nameDropdown.innerHTML = '<div>No matches found</div>';
-        }
-      });
 
-      // Draw button
-      drawBtn.addEventListener('click', async () => {
-        const type = typeSelect.value;
-        const name = nameInput.value.trim();
-        if (!type || !name) {
-          showPopup("Please select type and name before drawing.");
-          return;
-        }
-        spinner.style.display = 'inline-block';
-        try {
-          const data = await loadGeoJSON(geojsonFiles[type]);
-          const feature = data.features.find(f => f.properties.Name.toLowerCase() === name.toLowerCase());
-          if (!feature) {
-            showPopup(`No boundary found for '${name}' in ${type} data`);
-            return;
-          }
-          // Clear previous
-          if (drawnLayers[panelId]) {
-            map.removeLayer(drawnLayers[panelId]);
-          }
-          const color = panel.querySelector('.colorPicker').value;
-          const transparency = panel.querySelector('.transparencySlider').value;
-          const layer = L.geoJSON(feature, {
-            style: {
-              color: color,
-              weight: 2,
-              fillColor: color,
-              fillOpacity: transparency/100
+        function initializeMap() {
+            try {
+                map = L.map('map').setView([10.8505, 76.2711], 7);
+                
+                // Define base maps
+                baseMaps.osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                });
+                
+                baseMaps.topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenTopoMap contributors'
+                });
+                
+                baseMaps.blank = L.tileLayer('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', {
+                    attribution: ''
+                });
+
+                // Set default base map
+                baseMaps.osm.addTo(map);
+            } catch (error) {
+                showError('Map failed to initialize. Please refresh the page');
+                console.error('Map initialization error:', error);
             }
-          }).addTo(map);
-          drawnLayers[panelId] = layer;
-          map.fitBounds(layer.getBounds());
-        } catch (err) {
-          showPopup("Failed to draw boundary. Please try again");
-          console.error(err);
-        } finally {
-          spinner.style.display = 'none';
         }
-      });
 
-      // Clear button
-      clearBtn.addEventListener('click', () => {
-        if (drawnLayers[panelId]) {
-          map.removeLayer(drawnLayers[panelId]);
-          delete drawnLayers[panelId];
+        function changeBaseMap() {
+            const selectedMap = document.getElementById('baseMapSelect').value;
+            
+            // Remove current base map
+            if (baseMaps[currentBaseMap]) {
+                map.removeLayer(baseMaps[currentBaseMap]);
+            }
+            
+            // Add new base map
+            if (baseMaps[selectedMap]) {
+                baseMaps[selectedMap].addTo(map);
+                currentBaseMap = selectedMap;
+            }
         }
-      });
-    }
 
-    // ===== Populate Name Dropdown =====
-    function populateNameDropdown(names, dropdown, input) {
-      dropdown.innerHTML = '';
-      names.forEach(n => {
-        const div = document.createElement('div');
-        div.textContent = n;
-        div.style.cursor = 'pointer';
-        div.addEventListener('click', () => {
-          input.value = n;
-          dropdown.innerHTML = '';
-        });
-        dropdown.appendChild(div);
-      });
-    }
+        async function loadGeoJsonData() {
+            showLoadingOverlay(true);
+            
+            const files = [
+                { key: 'state', file: 'state_V17.geojson' },
+                { key: 'district', file: 'district_V17.geojson' },
+                { key: 'assembly', file: 'assembly_V17.geojson' },
+                { key: 'lsg', file: 'lsg_V17.geojson' }
+            ];
 
-    // ===== Error popup =====
-    function showPopup(msg) {
-      document.getElementById('errorMessage').textContent = msg;
-      document.getElementById('errorPopup').style.display = 'block';
-    }
-    function closePopup() {
-      document.getElementById('errorPopup').style.display = 'none';
-    }
+            try {
+                for (const { key, file } of files) {
+                    try {
+                        const response = await fetch(file);
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        const data = await response.json();
+                        
+                        // Validate GeoJSON structure
+                        if (!data.type || !data.features) {
+                            throw new Error('Invalid GeoJSON format');
+                        }
+                        
+                        geoJsonData[key] = data;
+                    } catch (error) {
+                        console.error(`Error loading ${file}:`, error);
+                        if (error.message.includes('HTTP 404')) {
+                            showError(`Data file ${file} not found`);
+                        } else if (error.message.includes('Invalid GeoJSON')) {
+                            showError(`Invalid data format in ${file}. This layer will be skipped`);
+                        } else {
+                            showError(`Unable to load ${file}. Please check your connection and try again`);
+                        }
+                        geoJsonData[key] = { type: 'FeatureCollection', features: [] };
+                    }
+                }
+            } catch (error) {
+                console.error('General loading error:', error);
+                showError('Unable to load map data. Please check your connection and try again');
+            }
+            
+            showLoadingOverlay(false);
+        }
 
-    // ===== Init =====
-    window.onload = () => {
-      createPanel();  // initial panel
-      document.getElementById('addPanelBtn').addEventListener('click', createPanel);
-    };
-  </script>
-</body>
-</html>
+        function createInitialPanel() {
+            addNewPanel();
+        }
+
+        function addNewPanel() {
+            panelCounter++;
+            const panelId = `panel_${panelCounter}`;
+            
+            const panelHtml = `
+                <div class="panel" id="${panelId}">
+                    <div class="panel-header">
+                        <span class="panel-title">Panel ${panelCounter}</span>
+                        ${panelCounter > 1 ? `<button class="close-panel" onclick="removePanel('${panelId}')">×</button>` : ''}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="${panelId}_type">Type:</label>
+                        <select id="${panelId}_type" onchange="onTypeChange('${panelId}')">
+                            <option value="">Select Type</option>
+                            <option value="state">State</option>
+                            <option value="district">District</option>
+                            <option value="assembly">Assembly</option>
+                            <option value="lsg">Local body</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="${panelId}_name">Name:</label>
+                        <div class="search-dropdown">
+                            <input type="text" id="${panelId}_name" class="search-input" 
+                                   placeholder="Select a name..." disabled 
+                                   onkeyup="filterNames('${panelId}')" 
+                                   onfocus="showDropdown('${panelId}')"
+                                   onblur="hideDropdown('${panelId}')">
+                            <div class="dropdown-list" id="${panelId}_dropdown"></div>
+                        </div>
+                    </div>
+
+                    <div id="${panelId}_relationships"></div>
+
+                    <div class="color-transparency-group">
+                        <div class="color-group">
+                            <label for="${panelId}_color">Color:</label>
+                            <input type="color" id="${panelId}_color" class="color-input" value="#000000">
+                        </div>
+                        <div class="transparency-group">
+                            <label for="${panelId}_transparency">Fill Transparency:</label>
+                            <input type="range" id="${panelId}_transparency" class="transparency-slider" 
+                                   min="0" max="100" value="0" oninput="updateTransparencyValue('${panelId}')">
+                            <div class="transparency-value" id="${panelId}_transparencyValue">0%</div>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" id="${panelId}_drawBtn" onclick="drawBoundaries('${panelId}')">
+                            <span class="loading-spinner" id="${panelId}_spinner"></span>
+                            Draw
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearBoundaries('${panelId}')">Clear</button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('panelsContainer').insertAdjacentHTML('beforeend', panelHtml);
+            panelLayers[panelId] = L.layerGroup().addTo(map);
+        }
+
+        function removePanel(panelId) {
+            // Remove panel from DOM
+            document.getElementById(panelId).remove();
+            
+            // Clear boundaries
+            clearBoundaries(panelId);
+            
+            // Remove layer group
+            if (panelLayers[panelId]) {
+                map.removeLayer(panelLayers[panelId]);
+                delete panelLayers[panelId];
+            }
+        }
+
+        function onTypeChange(panelId) {
+            const typeSelect = document.getElementById(`${panelId}_type`);
+            const nameInput = document.getElementById(`${panelId}_name`);
+            const relationshipsDiv = document.getElementById(`${panelId}_relationships`);
+            
+            const selectedType = typeSelect.value;
+            
+            if (selectedType) {
+                nameInput.disabled = false;
+                nameInput.value = '';
+                populateNameOptions(panelId, selectedType);
+                relationshipsDiv.innerHTML = '';
+            } else {
+                nameInput.disabled = true;
+                nameInput.value = '';
+                relationshipsDiv.innerHTML = '';
+            }
+        }
+
+        function populateNameOptions(panelId, type) {
+            const data = geoJsonData[type];
+            if (!data || !data.features) return;
+
+            const names = data.features.map(feature => feature.properties.Name).filter(name => name).sort();
+            
+            const nameInput = document.getElementById(`${panelId}_name`);
+            nameInput.setAttribute('data-options', JSON.stringify(names));
+        }
+
+        function filterNames(panelId) {
+            const input = document.getElementById(`${panelId}_name`);
+            const dropdown = document.getElementById(`${panelId}_dropdown`);
+            const query = input.value.toLowerCase();
+            
+            const optionsStr = input.getAttribute('data-options');
+            if (!optionsStr) return;
+            
+            const options = JSON.parse(optionsStr);
+            const filtered = options.filter(option => option.toLowerCase().includes(query));
+            
+            dropdown.innerHTML = '';
+            
+            if (filtered.length === 0) {
+                dropdown.innerHTML = '<div class="dropdown-item no-matches">No matches found</div>';
+            } else {
+                filtered.forEach(option => {
+                    const div = document.createElement('div');
+                    div.className = 'dropdown-item';
+                    div.textContent = option;
+                    div.onmousedown = () => selectName(panelId, option);
+                    dropdown.appendChild(div);
+                });
+            }
+            
+            dropdown.style.display = 'block';
+        }
+
+        function showDropdown(panelId) {
+            const input = document.getElementById(`${panelId}_name`);
+            if (!input.disabled && input.getAttribute('data-options')) {
+                filterNames(panelId);
+            }
+        }
+
+        function hideDropdown(panelId) {
+            setTimeout(() => {
+                document.getElementById(`${panelId}_dropdown`).style.display = 'none';
+            }, 200);
+        }
+
+        function selectName(panelId, name) {
+            const input = document.getElementById(`${panelId}_name`);
+            const dropdown = document.getElementById(`${panelId}_dropdown`);
+            
+            input.value = name;
+            dropdown.style.display = 'none';
+            
+            generateRelationshipCheckboxes(panelId);
+        }
+
+        function generateRelationshipCheckboxes(panelId) {
+            const typeSelect = document.getElementById(`${panelId}_type`);
+            const nameInput = document.getElementById(`${panelId}_name`);
+            const relationshipsDiv = document.getElementById(`${panelId}_relationships`);
+            
+            const type = typeSelect.value;
+            const name = nameInput.value;
+            
+            if (!type || !name) return;
+            
+            relationshipsDiv.innerHTML = '';
+            
+            const relationships = getRelationships(type, name);
+            
+            // Parents
+            if (relationships.parents && relationships.parents.length > 0) {
+                const parentsHtml = `
+                    <div class="checkbox-group">
+                        <h4>Parents:</h4>
+                        ${relationships.parents.map(parent => `
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="${panelId}_parent_${parent.type}" value="${parent.name}">
+                                <label for="${panelId}_parent_${parent.type}">${parent.name} (${parent.type})</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                relationshipsDiv.insertAdjacentHTML('beforeend', parentsHtml);
+            }
+            
+            // Children
+            if (relationships.children && Object.keys(relationships.children).length > 0) {
+                let childrenHtml = '<div class="checkbox-group"><h4>Children:</h4>';
+                
+                Object.entries(relationships.children).forEach(([childType, children]) => {
+                    if (children.length > 0) {
+                        childrenHtml += `
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="${panelId}_children_${childType}" value="${childType}">
+                                <label for="${panelId}_children_${childType}">All ${childType}s (${children.length})</label>
+                            </div>
+                        `;
+                    }
+                });
+                
+                childrenHtml += '</div>';
+                relationshipsDiv.insertAdjacentHTML('beforeend', childrenHtml);
+            }
+            
+            // Siblings
+            if (relationships.siblings && relationships.siblings.length > 0) {
+                const siblingsHtml = `
+                    <div class="checkbox-group">
+                        <h4>Siblings:</h4>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="${panelId}_siblings" value="siblings">
+                            <label for="${panelId}_siblings">All siblings (${relationships.siblings.length})</label>
+                        </div>
+                    </div>
+                `;
+                relationshipsDiv.insertAdjacentHTML('beforeend', siblingsHtml);
+            }
+        }
+
+        function getRelationships(type, name) {
+            const relationships = {
+                parents: [],
+                children: {},
+                siblings: []
+            };
+
+            try {
+                if (type === 'state') {
+                    // State has no parents, children are districts, assemblies, lsgs
+                    relationships.children.district = getChildrenNames('district', 'state', name);
+                    relationships.children.assembly = getChildrenNames('assembly', 'state', name);
+                    relationships.children.lsg = getChildrenNames('lsg', 'state', name);
+                    
+                } else if (type === 'district') {
+                    // District parent is state, children are assemblies and lsgs
+                    relationships.parents.push({ type: 'state', name: 'Kerala' });
+                    relationships.children.assembly = getChildrenNames('assembly', 'district', name);
+                    relationships.children.lsg = getChildrenNames('lsg', 'district', name);
+                    relationships.siblings = getSiblings('district', name);
+                    
+                } else if (type === 'assembly') {
+                    // Assembly parents are district and state, children are lsgs
+                    const districtName = getParentName('assembly', name, 'district');
+                    if (districtName) {
+                        relationships.parents.push({ type: 'district', name: districtName });
+                    }
+                    relationships.parents.push({ type: 'state', name: 'Kerala' });
+                    relationships.children.lsg = getChildrenNames('lsg', 'assembly', name);
+                    relationships.siblings = getSiblings('assembly', name);
+                    
+                } else if (type === 'lsg') {
+                    // LSG parents are assembly, district, and state, no children
+                    const assemblyName = getParentName('lsg', name, 'assembly');
+                    const districtName = getParentName('lsg', name, 'district');
+                    
+                    if (assemblyName) {
+                        relationships.parents.push({ type: 'assembly', name: assemblyName });
+                    }
+                    if (districtName) {
+                        relationships.parents.push({ type: 'district', name: districtName });
+                    }
+                    relationships.parents.push({ type: 'state', name: 'Kerala' });
+                    relationships.siblings = getSiblings('lsg', name);
+                }
+            } catch (error) {
+                console.error('Error getting relationships:', error);
+            }
+
+            return relationships;
+        }
+
+        function getChildrenNames(childType, parentType, parentName) {
+            const data = geoJsonData[childType];
+            if (!data || !data.features) return [];
+
+            return data.features
+                .filter(feature => {
+                    const props = feature.properties;
+                    if (parentType === 'state') return true;
+                    if (parentType === 'district') return props.District === parentName;
+                    if (parentType === 'assembly') return props.Assembly === parentName;
+                    return false;
+                })
+                .map(feature => feature.properties.Name)
+                .filter(name => name);
+        }
+
+        function getParentName(childType, childName, parentType) {
+            const data = geoJsonData[childType];
+            if (!data || !data.features) return null;
+
+            const feature = data.features.find(f => f.properties.Name === childName);
+            if (!feature) return null;
+
+            const props = feature.properties;
+            if (parentType === 'district') return props.District;
+            if (parentType === 'assembly') return props.Assembly;
+            if (parentType === 'state') return 'Kerala';
+            
+            return null;
+        }
+
+        function getSiblings(type, name) {
+            const data = geoJsonData[type];
+            if (!data || !data.features) return [];
+
+            const currentFeature = data.features.find(f => f.properties.Name === name);
+            if (!currentFeature) return [];
+
+            const currentProps = currentFeature.properties;
+            
+            return data.features
+                .filter(feature => {
+                    if (feature.properties.Name === name) return false;
+                    
+                    const props = feature.properties;
+                    if (type === 'district') return true; // All districts are siblings
+                    if (type === 'assembly') return props.District === currentProps.District;
+                    if (type === 'lsg') return props.Assembly === currentProps.Assembly;
+                    
+                    return false;
+                })
+                .map(feature => feature.properties.Name)
+                .filter(siblingName => siblingName);
+        }
+
+        function updateTransparencyValue(panelId) {
+            const slider = document.getElementById(`${panelId}_transparency`);
+            const valueDisplay = document.getElementById(`${panelId}_transparencyValue`);
+            valueDisplay.textContent = `${slider.value}%`;
+        }
+
+        async function drawBoundaries(panelId) {
+            const typeSelect = document.getElementById(`${panelId}_type`);
+            const nameInput = document.getElementById(`${panelId}_name`);
+            const drawBtn = document.getElementById(`${panelId}_drawBtn`);
+            const spinner = document.getElementById(`${panelId}_spinner`);
+            
+            const type = typeSelect.value;
+            const name = nameInput.value;
+            
+            if (!type || !name) {
+                showError('Please select both type and name');
+                return;
+            }
+
+            // Show loading state
+            drawBtn.disabled = true;
+            spinner.style.display = 'inline-block';
+
+            try {
+                // Clear existing boundaries for this panel
+                clearBoundaries(panelId);
+
+                const color = document.getElementById(`${panelId}_color`).value;
+                const transparency = parseInt(document.getElementById(`${panelId}_transparency`).value);
+                const fillOpacity = transparency / 100;
+
+                // Draw main boundary
+                await drawMainBoundary(panelId, type, name, color, fillOpacity);
+
+                // Draw related boundaries
+                await drawRelatedBoundaries(panelId, color, fillOpacity);
+
+                // Fit map to drawn boundaries
+                if (panelLayers[
