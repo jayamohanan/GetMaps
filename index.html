@@ -1,890 +1,219 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>asd Kerala Administrative Boundaries Viewer</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>112 Kerala Administrative Boundaries Viewer</title>
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            height: 100vh;
-            overflow: hidden;
-        }
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <!-- iro.js for color picker -->
+  <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
 
-        .container {
-            display: flex;
-            height: 100vh;
-        }
-
-        .sidebar {
-            width: 350px;
-            background: #f8f9fa;
-            border-right: 1px solid #dee2e6;
-            overflow-y: auto;
-            transition: all 0.3s ease;
-        }
-
-        .sidebar-header {
-            padding: 20px;
-            background: #343a40;
-            color: white;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
-
-        .sidebar-header h1 {
-            font-size: 18px;
-            margin-bottom: 5px;
-        }
-
-        .sidebar-header p {
-            font-size: 12px;
-            opacity: 0.8;
-        }
-
-        .sidebar-content {
-            padding: 20px;
-        }
-
-        .panel {
-            background: white;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            overflow: hidden;
-        }
-
-        .panel-header {
-            background: #e9ecef;
-            padding: 12px 16px;
-            font-weight: 600;
-            border-bottom: 1px solid #dee2e6;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .panel-content {
-            padding: 16px;
-        }
-
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 500;
-            color: #495057;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: #80bdff;
-            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-        }
-
-        .form-control:disabled {
-            background: #e9ecef;
-            color: #6c757d;
-        }
-
-        .checkbox-group {
-            margin-bottom: 16px;
-        }
-
-        .checkbox-group h4 {
-            margin-bottom: 8px;
-            font-size: 14px;
-            color: #495057;
-        }
-
-        .checkbox-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 6px;
-        }
-
-        .checkbox-item input[type="checkbox"] {
-            margin-right: 8px;
-        }
-
-        .checkbox-item label {
-            margin-bottom: 0;
-            font-weight: normal;
-            cursor: pointer;
-        }
-
-        .customization-group {
-            display: flex;
-            gap: 16px;
-            margin-bottom: 16px;
-        }
-
-        .color-group, .transparency-group {
-            flex: 1;
-        }
-
-        .color-input {
-            width: 100%;
-            height: 40px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .transparency-input {
-            width: 100%;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 12px;
-        }
-
-        .btn {
-            flex: 1;
-            padding: 10px 16px;
-            border: none;
-            border-radius: 4px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
-
-        .btn-primary {
-            background: #007bff;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #0056b3;
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background: #545b62;
-        }
-
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .spinner {
-            width: 16px;
-            height: 16px;
-            border: 2px solid transparent;
-            border-top: 2px solid currentColor;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .add-panel-btn {
-            width: 100%;
-            padding: 12px;
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-size: 14px;
-            cursor: pointer;
-            margin-bottom: 20px;
-        }
-
-        .add-panel-btn:hover {
-            background: #218838;
-        }
-
-        .remove-panel-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 4px 8px;
-            font-size: 12px;
-            cursor: pointer;
-        }
-
-        .remove-panel-btn:hover {
-            background: #c82333;
-        }
-
-        .map-container {
-            flex: 1;
-            position: relative;
-            min-width: 400px;
-        }
-
-        #map {
-            height: 100%;
-            width: 100%;
-        }
-
-        .base-map-control {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 1000;
-            background: white;
-            padding: 8px;
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .base-map-control select {
-            border: 1px solid #ccc;
-            border-radius: 3px;
-            padding: 4px 8px;
-            font-size: 12px;
-        }
-
-        .error-popup {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            z-index: 10000;
-            max-width: 400px;
-            width: 90%;
-        }
-
-        .error-popup h3 {
-            color: #dc3545;
-            margin-bottom: 12px;
-        }
-
-        .error-popup button {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            float: right;
-            margin-top: 12px;
-        }
-
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        }
-
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #007bff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        .mobile-toggle {
-            display: none;
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            z-index: 1001;
-            background: #343a40;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-            }
-
-            .sidebar {
-                width: 100%;
-                height: 50vh;
-                position: fixed;
-                top: 0;
-                left: 0;
-                z-index: 1000;
-                transform: translateY(-100%);
-            }
-
-            .sidebar.open {
-                transform: translateY(0);
-            }
-
-            .map-container {
-                height: 100vh;
-                min-width: unset;
-            }
-
-            .mobile-toggle {
-                display: block;
-            }
-        }
-    </style>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #map { height: 100%; min-width: 400px; }
+    .sidebar { width: 340px; max-width: 100%; overflow-y: auto; }
+    @media (max-width: 768px) {
+      .sidebar { width: 100%; position: absolute; z-index: 1000; background: white; }
+    }
+    .panel { border: 1px solid #ccc; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+    .spinner-border { display: none; }
+  </style>
 </head>
 <body>
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-spinner"></div>
+  <div class="d-flex flex-row h-100">
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar p-3">
+      <h4>Kerala Administrative Boundaries</h4>
+      <div id="panels"></div>
+      <button id="addPanelBtn" class="btn btn-outline-primary w-100 mt-2">
+        <i class="bi bi-plus-circle"></i> Add New Panel
+      </button>
     </div>
 
-    <button class="mobile-toggle" id="mobileToggle">☰ Panels</button>
+    <!-- Map -->
+    <div id="map" class="flex-grow-1"></div>
+  </div>
 
-    <div class="container">
-        <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <h1>Kerala Boundaries</h1>
-                <p>Administrative Divisions Viewer</p>
-            </div>
-            <div class="sidebar-content">
-                <div id="panelsContainer"></div>
-                <button class="add-panel-btn" id="addPanelBtn">+ Add New Panel</button>
-            </div>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // Map Initialization
+    let map;
+    const baseMaps = {
+      "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+      }),
+      "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenTopoMap'
+      }),
+      "Blank": L.tileLayer('', { attribution: '' })
+    };
+
+    try {
+      map = L.map('map', {
+        center: [10.8505, 76.2711],
+        zoom: 7,
+        layers: [baseMaps["OpenStreetMap"]]
+      });
+      L.control.layers(baseMaps).addTo(map);
+    } catch (e) {
+      alert("Map failed to initialize. Please refresh the page");
+      console.error(e);
+    }
+
+    // Cache for GeoJSON
+    const geojsonCache = {};
+    const geojsonFiles = {
+      State: "state_v15.2.geojson",
+      District: "district_V15.geojson",
+      Assembly: "assembly_V15.geojson",
+      "Local body": "lsg_V15.geojson"
+    };
+
+    async function loadGeoJSON(type) {
+      if (geojsonCache[type]) return geojsonCache[type];
+      const file = geojsonFiles[type];
+      try {
+        const resp = await fetch(file);
+        if (!resp.ok) {
+          alert(`Data file ${file} not found`);
+          return null;
+        }
+        const data = await resp.json();
+        geojsonCache[type] = data;
+        return data;
+      } catch (err) {
+        alert("Unable to load map data. Please check your connection and try again");
+        console.error(err);
+        return null;
+      }
+    }
+
+    // Panel Management
+    let panelCounter = 0;
+    function createPanel() {
+      panelCounter++;
+      const panelId = `panel-${panelCounter}`;
+
+      const panel = document.createElement("div");
+      panel.className = "panel";
+      panel.innerHTML = `
+        <h6>Panel ${panelCounter}</h6>
+        <div class="mb-2">
+          <label>Type</label>
+          <select class="form-select typeSelect">
+            <option value="" selected disabled>Select Type</option>
+            <option>State</option>
+            <option>District</option>
+            <option>Assembly</option>
+            <option>Local body</option>
+          </select>
         </div>
-
-        <div class="map-container">
-            <div class="base-map-control">
-                <select id="baseMapSelect">
-                    <option value="osm">OpenStreetMap</option>
-                    <option value="topo">OpenTopoMap</option>
-                    <option value="blank">Blank Map</option>
-                </select>
-            </div>
-            <div id="map"></div>
+        <div class="mb-2">
+          <label>Name</label>
+          <input class="form-control nameInput" list="${panelId}-options" disabled placeholder="Search name...">
+          <datalist id="${panelId}-options"></datalist>
         </div>
-    </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-    <script>
-        class KeralaMapViewer {
-            constructor() {
-                this.map = null;
-                this.baseMaps = {};
-                this.currentBaseMap = null;
-                this.geoJsonData = {};
-                this.panels = [];
-                this.panelCounter = 0;
-                this.layerGroups = {};
-                
-                this.init();
-            }
-
-            async init() {
-                try {
-                    await this.initializeMap();
-                    await this.loadGeoJsonData();
-                    this.setupEventListeners();
-                    this.createInitialPanel();
-                    this.hideLoading();
-                } catch (error) {
-                    this.showError('Map failed to initialize. Please refresh the page');
-                    console.error('Initialization error:', error);
-                    this.hideLoading();
-                }
-            }
-
-            initializeMap() {
-                try {
-                    this.map = L.map('map').setView([10.8505, 76.2711], 7);
-
-                    // Base maps
-                    this.baseMaps.osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        attribution: '© OpenStreetMap contributors'
-                    });
-
-                    this.baseMaps.topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-                        attribution: '© OpenTopoMap contributors'
-                    });
-
-                    this.baseMaps.blank = L.tileLayer('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', {
-                        attribution: 'Blank Map'
-                    });
-
-                    this.currentBaseMap = this.baseMaps.osm;
-                    this.currentBaseMap.addTo(this.map);
-
-                } catch (error) {
-                    throw new Error('Failed to initialize map');
-                }
-            }
-
-            async loadGeoJsonData() {
-                const files = [
-                    'state_v15.2.geojson',
-                    'district_V15.geojson',
-                    'assembly_V15.geojson',
-                    'lsg_V15.geojson'
-                ];
-
-                const loadPromises = files.map(async (file) => {
-                    try {
-                        const response = await fetch(file);
-                        if (!response.ok) {
-                            throw new Error(`File not found: ${file}`);
-                        }
-                        const data = await response.json();
-                        const type = file.split('_')[0];
-                        this.geoJsonData[type] = data;
-                    } catch (error) {
-                        this.showError(`Data file ${file} not found`);
-                        this.geoJsonData[file.split('_')[0]] = { features: [] };
-                    }
-                });
-
-                try {
-                    await Promise.all(loadPromises);
-                } catch (error) {
-                    this.showError('Unable to load map data. Please check your connection and try again');
-                }
-            }
-
-            setupEventListeners() {
-                document.getElementById('addPanelBtn').addEventListener('click', () => {
-                    this.createPanel();
-                });
-
-                document.getElementById('baseMapSelect').addEventListener('change', (e) => {
-                    this.switchBaseMap(e.target.value);
-                });
-
-                document.getElementById('mobileToggle').addEventListener('click', () => {
-                    document.getElementById('sidebar').classList.toggle('open');
-                });
-            }
-
-            switchBaseMap(mapType) {
-                if (this.currentBaseMap) {
-                    this.map.removeLayer(this.currentBaseMap);
-                }
-                this.currentBaseMap = this.baseMaps[mapType];
-                this.currentBaseMap.addTo(this.map);
-            }
-
-            createInitialPanel() {
-                this.createPanel();
-            }
-
-            createPanel() {
-                const panelId = ++this.panelCounter;
-                const panel = {
-                    id: panelId,
-                    layerGroup: L.layerGroup(),
-                    selectedType: null,
-                    selectedName: null
-                };
-
-                this.panels.push(panel);
-                panel.layerGroup.addTo(this.map);
-
-                const panelHtml = this.createPanelHtml(panelId);
-                document.getElementById('panelsContainer').insertAdjacentHTML('beforeend', panelHtml);
-
-                this.setupPanelEventListeners(panelId);
-            }
-
-            createPanelHtml(panelId) {
-                return `
-                    <div class="panel" data-panel-id="${panelId}">
-                        <div class="panel-header">
-                            <span>Panel ${panelId}</span>
-                            ${panelId > 1 ? `<button class="remove-panel-btn" onclick="mapViewer.removePanel(${panelId})">Remove</button>` : ''}
-                        </div>
-                        <div class="panel-content">
-                            <div class="form-group">
-                                <label for="type-${panelId}">Administrative Level Type</label>
-                                <select class="form-control" id="type-${panelId}" data-panel-id="${panelId}">
-                                    <option value="">Select Type</option>
-                                    <option value="state">State</option>
-                                    <option value="district">District</option>
-                                    <option value="assembly">Assembly</option>
-                                    <option value="lsg">Local body</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="name-${panelId}">Name</label>
-                                <select class="form-control" id="name-${panelId}" data-panel-id="${panelId}" disabled>
-                                    <option value="">Select Name</option>
-                                </select>
-                            </div>
-
-                            <div id="relationships-${panelId}" class="relationships-container" style="display: none;">
-                                <div id="parents-${panelId}" class="checkbox-group" style="display: none;">
-                                    <h4>Parents</h4>
-                                    <div class="parent-checkboxes"></div>
-                                </div>
-
-                                <div id="children-${panelId}" class="checkbox-group" style="display: none;">
-                                    <h4>Children</h4>
-                                    <div class="children-checkboxes"></div>
-                                </div>
-
-                                <div id="siblings-${panelId}" class="checkbox-group" style="display: none;">
-                                    <h4>Siblings</h4>
-                                    <div class="sibling-checkboxes"></div>
-                                </div>
-                            </div>
-
-                            <div class="customization-group">
-                                <div class="color-group">
-                                    <label for="color-${panelId}">Border Color</label>
-                                    <input type="color" class="color-input" id="color-${panelId}" value="#000000">
-                                </div>
-                                <div class="transparency-group">
-                                    <label for="transparency-${panelId}">Fill Transparency (%)</label>
-                                    <input type="range" class="transparency-input" id="transparency-${panelId}" min="0" max="100" value="0">
-                                </div>
-                            </div>
-
-                            <div class="button-group">
-                                <button class="btn btn-primary" id="draw-${panelId}" data-panel-id="${panelId}" disabled>
-                                    Draw Boundary
-                                </button>
-                                <button class="btn btn-secondary" id="clear-${panelId}" data-panel-id="${panelId}">
-                                    Clear
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            setupPanelEventListeners(panelId) {
-                const typeSelect = document.getElementById(`type-${panelId}`);
-                const nameSelect = document.getElementById(`name-${panelId}`);
-                const drawBtn = document.getElementById(`draw-${panelId}`);
-                const clearBtn = document.getElementById(`clear-${panelId}`);
-
-                typeSelect.addEventListener('change', (e) => {
-                    this.handleTypeChange(panelId, e.target.value);
-                });
-
-                nameSelect.addEventListener('change', (e) => {
-                    this.handleNameChange(panelId, e.target.value);
-                });
-
-                drawBtn.addEventListener('click', () => {
-                    this.drawBoundaries(panelId);
-                });
-
-                clearBtn.addEventListener('click', () => {
-                    this.clearPanel(panelId);
-                });
-            }
-
-            handleTypeChange(panelId, type) {
-                const nameSelect = document.getElementById(`name-${panelId}`);
-                const drawBtn = document.getElementById(`draw-${panelId}`);
-                
-                if (!type) {
-                    nameSelect.disabled = true;
-                    drawBtn.disabled = true;
-                    this.hideRelationships(panelId);
-                    return;
-                }
-
-                nameSelect.disabled = false;
-                nameSelect.innerHTML = '<option value="">Select Name</option>';
-                
-                const panel = this.panels.find(p => p.id === panelId);
-                panel.selectedType = type;
-
-                // Populate names
-                if (this.geoJsonData[type]) {
-                    const names = this.geoJsonData[type].features
-                        .map(feature => feature.properties.Name)
-                        .filter(name => name)
-                        .sort();
-
-                    names.forEach(name => {
-                        const option = document.createElement('option');
-                        option.value = name;
-                        option.textContent = name;
-                        nameSelect.appendChild(option);
-                    });
-                }
-            }
-
-            handleNameChange(panelId, name) {
-                const drawBtn = document.getElementById(`draw-${panelId}`);
-                const panel = this.panels.find(p => p.id === panelId);
-                
-                if (!name) {
-                    drawBtn.disabled = true;
-                    this.hideRelationships(panelId);
-                    return;
-                }
-
-                panel.selectedName = name;
-                drawBtn.disabled = false;
-                this.showRelationships(panelId, panel.selectedType, name);
-            }
-
-            showRelationships(panelId, type, name) {
-                const relationshipsContainer = document.getElementById(`relationships-${panelId}`);
-                relationshipsContainer.style.display = 'block';
-
-                // Hide all relationship groups first
-                this.hideRelationships(panelId);
-
-                // Show relevant relationships based on type
-                switch (type) {
-                    case 'state':
-                        this.showChildren(panelId, type, name);
-                        break;
-                    case 'district':
-                        this.showParents(panelId, type, name);
-                        this.showChildren(panelId, type, name);
-                        this.showSiblings(panelId, type, name);
-                        break;
-                    case 'assembly':
-                        this.showParents(panelId, type, name);
-                        this.showChildren(panelId, type, name);
-                        this.showSiblings(panelId, type, name);
-                        break;
-                    case 'lsg':
-                        this.showParents(panelId, type, name);
-                        this.showSiblings(panelId, type, name);
-                        break;
-                }
-            }
-
-            hideRelationships(panelId) {
-                const relationshipsContainer = document.getElementById(`relationships-${panelId}`);
-                relationshipsContainer.style.display = 'none';
-                
-                ['parents', 'children', 'siblings'].forEach(rel => {
-                    document.getElementById(`${rel}-${panelId}`).style.display = 'none';
-                });
-            }
-
-            showParents(panelId, type, name) {
-                const parentsDiv = document.getElementById(`parents-${panelId}`);
-                const parentsContainer = parentsDiv.querySelector('.parent-checkboxes');
-                parentsContainer.innerHTML = '';
-
-                const parents = this.getParents(type, name);
-                if (parents.length > 0) {
-                    parentsDiv.style.display = 'block';
-                    parents.forEach(parent => {
-                        const checkbox = this.createCheckbox(`parent-${parent.type}-${panelId}`, parent.label);
-                        parentsContainer.appendChild(checkbox);
-                    });
-                }
-            }
-
-            showChildren(panelId, type, name) {
-                const childrenDiv = document.getElementById(`children-${panelId}`);
-                const childrenContainer = childrenDiv.querySelector('.children-checkboxes');
-                childrenContainer.innerHTML = '';
-
-                const children = this.getChildren(type, name);
-                if (children.length > 0) {
-                    childrenDiv.style.display = 'block';
-                    children.forEach(child => {
-                        const checkbox = this.createCheckbox(`child-${child.type}-${panelId}`, child.label);
-                        childrenContainer.appendChild(checkbox);
-                    });
-                }
-            }
-
-            showSiblings(panelId, type, name) {
-                const siblingsDiv = document.getElementById(`siblings-${panelId}`);
-                const siblingsContainer = siblingsDiv.querySelector('.sibling-checkboxes');
-                siblingsContainer.innerHTML = '';
-
-                const siblings = this.getSiblings(type, name);
-                if (siblings.length > 0) {
-                    siblingsDiv.style.display = 'block';
-                    const checkbox = this.createCheckbox(`sibling-all-${panelId}`, `All other ${type}s in same parent`);
-                    siblingsContainer.appendChild(checkbox);
-                }
-            }
-
-            getParents(type, name) {
-                const parents = [];
-                
-                if (type === 'district' || type === 'assembly' || type === 'lsg') {
-                    parents.push({ type: 'state', label: 'State (Kerala)' });
-                }
-                
-                if (type === 'assembly' || type === 'lsg') {
-                    const districtName = this.getDistrictForItem(type, name);
-                    if (districtName) {
-                        parents.push({ type: 'district', label: `District (${districtName})` });
-                    }
-                }
-                
-                if (type === 'lsg') {
-                    const assemblyName = this.getAssemblyForLSG(name);
-                    if (assemblyName) {
-                        parents.push({ type: 'assembly', label: `Assembly (${assemblyName})` });
-                    }
-                }
-                
-                return parents;
-            }
-
-            getChildren(type, name) {
-                const children = [];
-                
-                if (type === 'state') {
-                    if (this.geoJsonData.district?.features?.length > 0) {
-                        children.push({ type: 'district', label: 'All Districts' });
-                    }
-                    if (this.geoJsonData.assembly?.features?.length > 0) {
-                        children.push({ type: 'assembly', label: 'All Assemblies' });
-                    }
-                    if (this.geoJsonData.lsg?.features?.length > 0) {
-                        children.push({ type: 'lsg', label: 'All Local bodies' });
-                    }
-                } else if (type === 'district') {
-                    const assemblies = this.getAssembliesInDistrict(name);
-                    if (assemblies.length > 0) {
-                        children.push({ type: 'assembly', label: `Assemblies in ${name}` });
-                    }
-                    const lsgs = this.getLSGsInDistrict(name);
-                    if (lsgs.length > 0) {
-                        children.push({ type: 'lsg', label: `Local bodies in ${name}` });
-                    }
-                } else if (type === 'assembly') {
-                    const lsgs = this.getLSGsInAssembly(name);
-                    if (lsgs.length > 0) {
-                        children.push({ type: 'lsg', label: `Local bodies in ${name}` });
-                    }
-                }
-                
-                return children;
-            }
-
-            getSiblings(type, name) {
-                // Simplified - just return array indicating siblings exist
-                if (type === 'district') {
-                    return this.geoJsonData.district?.features?.filter(f => f.properties.Name !== name) || [];
-                } else if (type === 'assembly') {
-                    const district = this.getDistrictForItem(type, name);
-                    return this.getAssembliesInDistrict(district).filter(a => a !== name);
-                } else if (type === 'lsg') {
-                    const assembly = this.getAssemblyForLSG(name);
-                    return this.getLSGsInAssembly(assembly).filter(l => l !== name);
-                }
-                return [];
-            }
-
-            getDistrictForItem(type, name) {
-                if (type === 'assembly') {
-                    const feature = this.geoJsonData.assembly?.features?.find(f => f.properties.Name === name);
-                    return feature?.properties?.District || feature?.properties?.DISTRICT;
-                } else if (type === 'lsg') {
-                    const feature = this.geoJsonData.lsg?.features?.find(f => f.properties.Name === name);
-                    return feature?.properties?.District || feature?.properties?.DISTRICT;
-                }
-                return null;
-            }
-
-            getAssemblyForLSG(lsgName) {
-                const feature = this.geoJsonData.lsg?.features?.find(f => f.properties.Name === lsgName);
-                return feature?.properties?.Assembly || feature?.properties?.ASSEMBLY;
-            }
-
-            getAssembliesInDistrict(districtName) {
-                return this.geoJsonData.assembly?.features
-                    ?.filter(f => (f.properties.District || f.properties.DISTRICT) === districtName)
-                    ?.map(f => f.properties.Name) || [];
-            }
-
-            getLSGsInDistrict(districtName) {
-                return this.geoJsonData.lsg?.features
-                    ?.filter(f => (f.properties.District || f.properties.DISTRICT) === districtName)
-                    ?.map(f => f.properties.Name) || [];
-            }
-
-            getLSGsInAssembly(assemblyName) {
-                return this.geoJsonData.lsg?.features
-                    ?.filter(f => (f.properties.Assembly || f.properties.ASSEMBLY) === assemblyName)
-                    ?.map(f => f.properties.Name) || [];
-            }
-
-            createCheckbox(id, label) {
-                const div = document.createElement('div');
-                div.className = 'checkbox-item';
-                div.innerHTML = `
-                    <input type="checkbox" id="${id}">
-                    <label for="${id}">${label}</label>
-                `;
-                return div;
-            }
-
-            async drawBoundaries(panelId) {
-                const drawBtn = document.getElementById(`draw-${panelId}`);
-                const panel = this.panels.find(p => p.id === panelId);
-                
-                if (!panel || !panel.selectedType || !panel.selectedName) {
-                    return;
-                }
-
-                // Show loading state
-                drawBtn.disabled = true;
-                drawBtn.innerHTML = '<div class="spinner"></div> Drawing...';
-
-                try {
-                    // Clear existing layers
-                    panel.layerGroup.clearLayers();
-
-                    const color = document.getElementById(`color-${panelId}`).value;
-                    const transparency = document.getElementById(`transparency-${panelId}`).value;
-                    const fillOpacity = (100 - transparency) / 100;
-
-                    // Draw main boundary
-                    await this.drawMainBoundary(panel, color, fillOpacity);
-
-                    // Draw related boundaries if checked
-                    await this.drawRelatedBoundaries(panelId, panel, color, fillOpacity * 0.5);
-
-                    drawBtn.innerHTML = 'Draw Boundary';
-                    drawBtn.disabled = false;
-
-                } catch (error) {
-                    this.showError('Failed to draw boundary. Please try again');
-                    console.error('Drawing
+        <div class="mb-2 relCheckboxes"></div>
+        <div class="mb-2">
+          <label>Outline Color</label>
+          <div id="${panelId}-colorpicker"></div>
+        </div>
+        <div class="mb-2">
+          <label>Fill Transparency</label>
+          <input type="range" class="form-range opacitySlider" min="0" max="100" value="0">
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-success drawBtn">Draw <span class="spinner-border spinner-border-sm"></span></button>
+          <button class="btn btn-danger clearBtn">Clear</button>
+        </div>
+      `;
+      document.getElementById("panels").appendChild(panel);
+
+      // Setup Color Picker
+      const colorPicker = new iro.ColorPicker(`#${panelId}-colorpicker`, { width: 150, color: "#000" });
+
+      // Event listeners
+      const typeSelect = panel.querySelector(".typeSelect");
+      const nameInput = panel.querySelector(".nameInput");
+      const datalist = panel.querySelector("datalist");
+      const spinner = panel.querySelector(".spinner-border");
+
+      let drawnLayers = [];
+
+      typeSelect.addEventListener("change", async () => {
+        const type = typeSelect.value;
+        nameInput.disabled = false;
+        nameInput.value = "";
+        datalist.innerHTML = "";
+        const data = await loadGeoJSON(type);
+        if (data && data.features) {
+          const names = data.features.map(f => f.properties.Name);
+          names.sort().forEach(n => {
+            const opt = document.createElement("option");
+            opt.value = n;
+            datalist.appendChild(opt);
+          });
+        } else {
+          alert(`Invalid data format in ${geojsonFiles[type]}. This layer will be skipped`);
+        }
+      });
+
+      panel.querySelector(".drawBtn").addEventListener("click", async () => {
+        spinner.style.display = "inline-block";
+        const type = typeSelect.value;
+        const name = nameInput.value;
+        if (!type || !name) {
+          alert("Please select a type and name first");
+          spinner.style.display = "none";
+          return;
+        }
+        const data = await loadGeoJSON(type);
+        if (!data) {
+          spinner.style.display = "none";
+          return;
+        }
+        const match = data.features.find(f => f.properties.Name.toLowerCase() === name.toLowerCase());
+        if (!match) {
+          alert(`No boundary found for '${name}' in ${type} data`);
+          spinner.style.display = "none";
+          return;
+        }
+        const color = colorPicker.color.hexString;
+        const opacity = panel.querySelector(".opacitySlider").value / 100;
+
+        const layer = L.geoJSON(match, {
+          style: {
+            color: color,
+            weight: 2,
+            fillOpacity: opacity
+          }
+        }).addTo(map);
+        drawnLayers.push(layer);
+        map.fitBounds(layer.getBounds());
+        spinner.style.display = "none";
+      });
+
+      panel.querySelector(".clearBtn").addEventListener("click", () => {
+        drawnLayers.forEach(l => map.removeLayer(l));
+        drawnLayers = [];
+      });
+    }
+
+    // Initialize first panel
+    createPanel();
+
+    // Add new panel button
+    document.getElementById("addPanelBtn").addEventListener("click", createPanel);
+  </script>
+</body>
+</html>
