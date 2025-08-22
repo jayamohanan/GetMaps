@@ -2,185 +2,338 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <title>q Kerala Administrative Boundaries Viewer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kerala Administrative Boundaries Viewer</title>
-  
+
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-  <!-- Custom Styles -->
+  <!-- Custom CSS -->
   <style>
     body, html {
-      margin: 0; padding: 0; height: 100%; width: 100%;
+      margin: 0;
+      padding: 0;
+      height: 100%;
       font-family: Arial, sans-serif;
-    }
-    #app {
-      display: flex; height: 100%; width: 100%;
+      display: flex;
     }
     #sidebar {
-      width: 340px; min-width: 320px; max-width: 350px;
-      background: #f9f9f9; border-right: 1px solid #ccc;
-      padding: 10px; overflow-y: auto;
+      width: 340px;
+      min-width: 320px;
+      max-width: 350px;
+      background: #f9f9f9;
+      border-right: 1px solid #ccc;
+      padding: 10px;
+      overflow-y: auto;
     }
     #map {
-      flex: 1; min-width: 400px;
+      flex: 1;
+      min-width: 400px;
+      height: 100vh;
     }
     .panel {
-      border: 1px solid #ddd; border-radius: 8px;
-      padding: 10px; margin-bottom: 15px; background: #fff;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 15px;
+      background: #fff;
     }
-    .panel h3 {
-      margin: 0 0 10px; font-size: 16px;
+    .panel h4 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
     }
     .form-group {
       margin-bottom: 10px;
     }
-    select, input[type="text"], input[type="color"], input[type="range"], button {
-      width: 100%; padding: 6px; margin-top: 4px;
+    select, input[type="text"] {
+      width: 100%;
+      padding: 6px;
+      font-size: 14px;
     }
-    button {
-      cursor: pointer; border: none; border-radius: 4px;
-      padding: 8px; margin-top: 5px;
+    .checkbox-group {
+      margin: 8px 0;
     }
-    .draw-btn { background: #007bff; color: #fff; }
-    .clear-btn { background: #dc3545; color: #fff; }
-    .add-btn { background: #28a745; color: #fff; width: 100%; }
-    .hidden { display: none; }
+    .btn {
+      display: inline-block;
+      padding: 6px 10px;
+      margin-right: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      background: #eee;
+    }
+    .btn:hover {
+      background: #ddd;
+    }
+    #addPanelBtn {
+      width: 100%;
+      margin-top: 10px;
+      background: #007bff;
+      color: #fff;
+      border: none;
+    }
+    .spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #ccc;
+      border-top: 2px solid #333;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-left: 5px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    /* Mobile responsiveness */
     @media (max-width: 768px) {
-      #app { flex-direction: column; }
-      #sidebar { width: 100%; max-width: none; }
-      #map { min-width: 100%; height: 60vh; }
+      body {
+        flex-direction: column;
+      }
+      #sidebar {
+        width: 100%;
+        max-width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #ccc;
+      }
+      #map {
+        height: calc(100vh - 300px);
+      }
+    }
+    /* Error popup */
+    .popup {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      border: 2px solid #444;
+      padding: 20px;
+      z-index: 2000;
+      display: none;
+    }
+    .popup button {
+      margin-top: 10px;
+      padding: 6px 12px;
     }
   </style>
 </head>
 <body>
-<div id="app">
   <div id="sidebar">
-    <h2>Kerala Boundaries Viewer</h2>
     <div id="panels"></div>
-    <button id="addPanel" class="add-btn">+ Add New Panel</button>
+    <button id="addPanelBtn" class="btn">+ Add New Panel</button>
   </div>
   <div id="map"></div>
-</div>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Error popup -->
+  <div id="errorPopup" class="popup">
+    <div id="errorMessage"></div>
+    <button onclick="closePopup()">OK</button>
+  </div>
 
-<script>
-  // =========================
-  // Global Config and State
-  // =========================
-  const map = L.map('map').setView([10.8505, 76.2711], 7);
-  const geojsonCache = {}; // cache loaded data
-  const panels = {};
-  let panelCounter = 1;
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  // Base maps
-  const baseLayers = {
-    "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OSM contributors'
-    }).addTo(map),
-    "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenTopoMap'
-    }),
-    "Blank": L.tileLayer('', { attribution: '' })
-  };
-  L.control.layers(baseLayers, {}).addTo(map);
+  <script>
+    // ===== Map Setup =====
+    const map = L.map('map').setView([10.8505, 76.2711], 7);
 
-  // =========================
-  // Utility: Popup Errors
-  // =========================
-  function showError(msg) {
-    alert(msg); // Replace with modal if needed
-    console.error(msg);
-  }
-
-  // =========================
-  // Load GeoJSON (cached)
-  // =========================
-  async function loadGeoJSON(name, file) {
-    if (geojsonCache[name]) return geojsonCache[name];
-    try {
-      const resp = await fetch(file);
-      if (!resp.ok) throw new Error("File missing");
-      const data = await resp.json();
-      geojsonCache[name] = data;
-      return data;
-    } catch (err) {
-      showError(`Error loading ${file}: ${err.message}`);
-      geojsonCache[name] = { type: "FeatureCollection", features: [] };
-      return geojsonCache[name];
-    }
-  }
-
-  // =========================
-  // Panel Creation
-  // =========================
-  function createPanel(id) {
-    const container = document.createElement('div');
-    container.className = 'panel';
-    container.innerHTML = `
-      <h3>Panel ${id}</h3>
-      <div class="form-group">
-        <label>Type</label>
-        <select class="typeSelect">
-          <option value="">Select Type</option>
-          <option value="state">State</option>
-          <option value="district">District</option>
-          <option value="assembly">Assembly</option>
-          <option value="lsg">Local body</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Name</label>
-        <input type="text" class="nameInput" placeholder="Search name..." disabled>
-        <div class="nameResults hidden"></div>
-      </div>
-      <div class="form-group relationships hidden"></div>
-      <div class="form-group">
-        <label>Color</label>
-        <input type="color" class="colorPicker" value="#000000">
-      </div>
-      <div class="form-group">
-        <label>Transparency</label>
-        <input type="range" class="transparency" min="0" max="100" value="0">
-      </div>
-      <button class="draw-btn">Draw</button>
-      <button class="clear-btn">Clear</button>
-    `;
-    document.getElementById('panels').appendChild(container);
-
-    panels[id] = {
-      container,
-      layers: []
+    const baseMaps = {
+      "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+      "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'),
+      "Blank": L.tileLayer('', { attribution: '' })
     };
 
-    // Event wiring will go here (type select, search, draw, clear...)
-  }
+    baseMaps.OpenStreetMap.addTo(map);
+    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
-  // =========================
-  // Init
-  // =========================
-  async function init() {
-    // Load all datasets in parallel
-    await Promise.all([
-      loadGeoJSON("state", "state_V17.geojson"),
-      loadGeoJSON("district", "district_V17.geojson"),
-      loadGeoJSON("assembly", "assembly_V17.geojson"),
-      loadGeoJSON("lsg", "lsg_V17.geojson")
-    ]);
+    // ===== Global State =====
+    const geojsonFiles = {
+      "State": "state_V17.geojson",
+      "District": "district_V17.geojson",
+      "Assembly": "assembly_V17.geojson",
+      "Local body": "lsg_V17.geojson"
+    };
 
-    // Add first panel
-    createPanel(panelCounter++);
+    const cachedData = {};   // cache loaded GeoJSON
+    const panelCount = { value: 0 };
+    const drawnLayers = {};  // store drawn layers per panel
 
-    // Add button handler
-    document.getElementById('addPanel').addEventListener('click', () => {
-      createPanel(panelCounter++);
-    });
-  }
+    // ===== Utility: Load GeoJSON with error handling =====
+    async function loadGeoJSON(file) {
+      if (cachedData[file]) return cachedData[file];
+      try {
+        const response = await fetch(file);
+        if (!response.ok) throw new Error(`Data file ${file} not found`);
+        const data = await response.json();
+        cachedData[file] = data;
+        return data;
+      } catch (err) {
+        showPopup(err.message);
+        return { type: "FeatureCollection", features: [] };
+      }
+    }
 
-  init();
-</script>
+    // ===== Panel Creation =====
+    function createPanel() {
+      panelCount.value++;
+      const panelId = panelCount.value;
+      const panel = document.createElement('div');
+      panel.className = 'panel';
+      panel.dataset.panelId = panelId;
+      panel.innerHTML = `
+        <h4>Panel ${panelId}</h4>
+        <div class="form-group">
+          <label>Type:</label>
+          <select class="typeSelect">
+            <option value="">-- Select Type --</option>
+            <option>State</option>
+            <option>District</option>
+            <option>Assembly</option>
+            <option>Local body</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Name:</label>
+          <input type="text" class="nameInput" placeholder="Search name..." disabled>
+          <div class="nameDropdown"></div>
+        </div>
+        <div class="checkbox-group"></div>
+        <div class="form-group">
+          <label>Boundary Color:</label>
+          <input type="color" class="colorPicker" value="#000000">
+        </div>
+        <div class="form-group">
+          <label>Transparency:</label>
+          <input type="range" class="transparencySlider" min="0" max="100" value="0">
+        </div>
+        <div class="form-group">
+          <button class="btn drawBtn">Draw <div class="spinner"></div></button>
+          <button class="btn clearBtn">Clear</button>
+        </div>
+      `;
+      document.getElementById('panels').appendChild(panel);
+
+      setupPanelEvents(panel, panelId);
+    }
+
+    // ===== Setup Events =====
+    function setupPanelEvents(panel, panelId) {
+      const typeSelect = panel.querySelector('.typeSelect');
+      const nameInput = panel.querySelector('.nameInput');
+      const nameDropdown = panel.querySelector('.nameDropdown');
+      const drawBtn = panel.querySelector('.drawBtn');
+      const spinner = panel.querySelector('.spinner');
+      const clearBtn = panel.querySelector('.clearBtn');
+
+      // Type selection → enable name input
+      typeSelect.addEventListener('change', async () => {
+        const type = typeSelect.value;
+        nameInput.value = '';
+        nameInput.disabled = !type;
+        nameDropdown.innerHTML = '';
+        if (type) {
+          const data = await loadGeoJSON(geojsonFiles[type]);
+          const names = data.features.map(f => f.properties.Name);
+          populateNameDropdown(names, nameDropdown, nameInput);
+        }
+      });
+
+      // Live search filtering
+      nameInput.addEventListener('input', () => {
+        const items = [...nameDropdown.querySelectorAll('div')];
+        const query = nameInput.value.toLowerCase();
+        let matches = 0;
+        items.forEach(item => {
+          if (item.textContent.toLowerCase().includes(query)) {
+            item.style.display = '';
+            matches++;
+          } else {
+            item.style.display = 'none';
+          }
+        });
+        if (matches === 0) {
+          nameDropdown.innerHTML = '<div>No matches found</div>';
+        }
+      });
+
+      // Draw button
+      drawBtn.addEventListener('click', async () => {
+        const type = typeSelect.value;
+        const name = nameInput.value.trim();
+        if (!type || !name) {
+          showPopup("Please select type and name before drawing.");
+          return;
+        }
+        spinner.style.display = 'inline-block';
+        try {
+          const data = await loadGeoJSON(geojsonFiles[type]);
+          const feature = data.features.find(f => f.properties.Name.toLowerCase() === name.toLowerCase());
+          if (!feature) {
+            showPopup(`No boundary found for '${name}' in ${type} data`);
+            return;
+          }
+          // Clear previous
+          if (drawnLayers[panelId]) {
+            map.removeLayer(drawnLayers[panelId]);
+          }
+          const color = panel.querySelector('.colorPicker').value;
+          const transparency = panel.querySelector('.transparencySlider').value;
+          const layer = L.geoJSON(feature, {
+            style: {
+              color: color,
+              weight: 2,
+              fillColor: color,
+              fillOpacity: transparency/100
+            }
+          }).addTo(map);
+          drawnLayers[panelId] = layer;
+          map.fitBounds(layer.getBounds());
+        } catch (err) {
+          showPopup("Failed to draw boundary. Please try again");
+          console.error(err);
+        } finally {
+          spinner.style.display = 'none';
+        }
+      });
+
+      // Clear button
+      clearBtn.addEventListener('click', () => {
+        if (drawnLayers[panelId]) {
+          map.removeLayer(drawnLayers[panelId]);
+          delete drawnLayers[panelId];
+        }
+      });
+    }
+
+    // ===== Populate Name Dropdown =====
+    function populateNameDropdown(names, dropdown, input) {
+      dropdown.innerHTML = '';
+      names.forEach(n => {
+        const div = document.createElement('div');
+        div.textContent = n;
+        div.style.cursor = 'pointer';
+        div.addEventListener('click', () => {
+          input.value = n;
+          dropdown.innerHTML = '';
+        });
+        dropdown.appendChild(div);
+      });
+    }
+
+    // ===== Error popup =====
+    function showPopup(msg) {
+      document.getElementById('errorMessage').textContent = msg;
+      document.getElementById('errorPopup').style.display = 'block';
+    }
+    function closePopup() {
+      document.getElementById('errorPopup').style.display = 'none';
+    }
+
+    // ===== Init =====
+    window.onload = () => {
+      createPanel();  // initial panel
+      document.getElementById('addPanelBtn').addEventListener('click', createPanel);
+    };
+  </script>
 </body>
 </html>
