@@ -3,217 +3,184 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>112 Kerala Administrative Boundaries Viewer</title>
-
+  <title>Kerala Administrative Boundaries Viewer</title>
+  
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- Bootstrap CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-  <!-- Bootstrap Icons -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-  <!-- iro.js for color picker -->
-  <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
 
+  <!-- Custom Styles -->
   <style>
-    html, body { height: 100%; margin: 0; }
-    #map { height: 100%; min-width: 400px; }
-    .sidebar { width: 340px; max-width: 100%; overflow-y: auto; }
-    @media (max-width: 768px) {
-      .sidebar { width: 100%; position: absolute; z-index: 1000; background: white; }
+    body, html {
+      margin: 0; padding: 0; height: 100%; width: 100%;
+      font-family: Arial, sans-serif;
     }
-    .panel { border: 1px solid #ccc; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-    .spinner-border { display: none; }
+    #app {
+      display: flex; height: 100%; width: 100%;
+    }
+    #sidebar {
+      width: 340px; min-width: 320px; max-width: 350px;
+      background: #f9f9f9; border-right: 1px solid #ccc;
+      padding: 10px; overflow-y: auto;
+    }
+    #map {
+      flex: 1; min-width: 400px;
+    }
+    .panel {
+      border: 1px solid #ddd; border-radius: 8px;
+      padding: 10px; margin-bottom: 15px; background: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .panel h3 {
+      margin: 0 0 10px; font-size: 16px;
+    }
+    .form-group {
+      margin-bottom: 10px;
+    }
+    select, input[type="text"], input[type="color"], input[type="range"], button {
+      width: 100%; padding: 6px; margin-top: 4px;
+    }
+    button {
+      cursor: pointer; border: none; border-radius: 4px;
+      padding: 8px; margin-top: 5px;
+    }
+    .draw-btn { background: #007bff; color: #fff; }
+    .clear-btn { background: #dc3545; color: #fff; }
+    .add-btn { background: #28a745; color: #fff; width: 100%; }
+    .hidden { display: none; }
+    @media (max-width: 768px) {
+      #app { flex-direction: column; }
+      #sidebar { width: 100%; max-width: none; }
+      #map { min-width: 100%; height: 60vh; }
+    }
   </style>
 </head>
 <body>
-  <div class="d-flex flex-row h-100">
-    <!-- Sidebar -->
-    <div id="sidebar" class="sidebar p-3">
-      <h4>Kerala Administrative Boundaries</h4>
-      <div id="panels"></div>
-      <button id="addPanelBtn" class="btn btn-outline-primary w-100 mt-2">
-        <i class="bi bi-plus-circle"></i> Add New Panel
-      </button>
-    </div>
-
-    <!-- Map -->
-    <div id="map" class="flex-grow-1"></div>
+<div id="app">
+  <div id="sidebar">
+    <h2>Kerala Boundaries Viewer</h2>
+    <div id="panels"></div>
+    <button id="addPanel" class="add-btn">+ Add New Panel</button>
   </div>
+  <div id="map"></div>
+</div>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <script>
-    // Map Initialization
-    let map;
-    const baseMaps = {
-      "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
-      }),
-      "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenTopoMap'
-      }),
-      "Blank": L.tileLayer('', { attribution: '' })
-    };
+<script>
+  // =========================
+  // Global Config and State
+  // =========================
+  const map = L.map('map').setView([10.8505, 76.2711], 7);
+  const geojsonCache = {}; // cache loaded data
+  const panels = {};
+  let panelCounter = 1;
 
+  // Base maps
+  const baseLayers = {
+    "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OSM contributors'
+    }).addTo(map),
+    "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenTopoMap'
+    }),
+    "Blank": L.tileLayer('', { attribution: '' })
+  };
+  L.control.layers(baseLayers, {}).addTo(map);
+
+  // =========================
+  // Utility: Popup Errors
+  // =========================
+  function showError(msg) {
+    alert(msg); // Replace with modal if needed
+    console.error(msg);
+  }
+
+  // =========================
+  // Load GeoJSON (cached)
+  // =========================
+  async function loadGeoJSON(name, file) {
+    if (geojsonCache[name]) return geojsonCache[name];
     try {
-      map = L.map('map', {
-        center: [10.8505, 76.2711],
-        zoom: 7,
-        layers: [baseMaps["OpenStreetMap"]]
-      });
-      L.control.layers(baseMaps).addTo(map);
-    } catch (e) {
-      alert("Map failed to initialize. Please refresh the page");
-      console.error(e);
+      const resp = await fetch(file);
+      if (!resp.ok) throw new Error("File missing");
+      const data = await resp.json();
+      geojsonCache[name] = data;
+      return data;
+    } catch (err) {
+      showError(`Error loading ${file}: ${err.message}`);
+      geojsonCache[name] = { type: "FeatureCollection", features: [] };
+      return geojsonCache[name];
     }
+  }
 
-    // Cache for GeoJSON
-    const geojsonCache = {};
-    const geojsonFiles = {
-      State: "state_v15.2.geojson",
-      District: "district_V15.geojson",
-      Assembly: "assembly_V15.geojson",
-      "Local body": "lsg_V15.geojson"
+  // =========================
+  // Panel Creation
+  // =========================
+  function createPanel(id) {
+    const container = document.createElement('div');
+    container.className = 'panel';
+    container.innerHTML = `
+      <h3>Panel ${id}</h3>
+      <div class="form-group">
+        <label>Type</label>
+        <select class="typeSelect">
+          <option value="">Select Type</option>
+          <option value="state">State</option>
+          <option value="district">District</option>
+          <option value="assembly">Assembly</option>
+          <option value="lsg">Local body</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" class="nameInput" placeholder="Search name..." disabled>
+        <div class="nameResults hidden"></div>
+      </div>
+      <div class="form-group relationships hidden"></div>
+      <div class="form-group">
+        <label>Color</label>
+        <input type="color" class="colorPicker" value="#000000">
+      </div>
+      <div class="form-group">
+        <label>Transparency</label>
+        <input type="range" class="transparency" min="0" max="100" value="0">
+      </div>
+      <button class="draw-btn">Draw</button>
+      <button class="clear-btn">Clear</button>
+    `;
+    document.getElementById('panels').appendChild(container);
+
+    panels[id] = {
+      container,
+      layers: []
     };
 
-    async function loadGeoJSON(type) {
-      if (geojsonCache[type]) return geojsonCache[type];
-      const file = geojsonFiles[type];
-      try {
-        const resp = await fetch(file);
-        if (!resp.ok) {
-          alert(`Data file ${file} not found`);
-          return null;
-        }
-        const data = await resp.json();
-        geojsonCache[type] = data;
-        return data;
-      } catch (err) {
-        alert("Unable to load map data. Please check your connection and try again");
-        console.error(err);
-        return null;
-      }
-    }
+    // Event wiring will go here (type select, search, draw, clear...)
+  }
 
-    // Panel Management
-    let panelCounter = 0;
-    function createPanel() {
-      panelCounter++;
-      const panelId = `panel-${panelCounter}`;
+  // =========================
+  // Init
+  // =========================
+  async function init() {
+    // Load all datasets in parallel
+    await Promise.all([
+      loadGeoJSON("state", "state_V17.geojson"),
+      loadGeoJSON("district", "district_V17.geojson"),
+      loadGeoJSON("assembly", "assembly_V17.geojson"),
+      loadGeoJSON("lsg", "lsg_V17.geojson")
+    ]);
 
-      const panel = document.createElement("div");
-      panel.className = "panel";
-      panel.innerHTML = `
-        <h6>Panel ${panelCounter}</h6>
-        <div class="mb-2">
-          <label>Type</label>
-          <select class="form-select typeSelect">
-            <option value="" selected disabled>Select Type</option>
-            <option>State</option>
-            <option>District</option>
-            <option>Assembly</option>
-            <option>Local body</option>
-          </select>
-        </div>
-        <div class="mb-2">
-          <label>Name</label>
-          <input class="form-control nameInput" list="${panelId}-options" disabled placeholder="Search name...">
-          <datalist id="${panelId}-options"></datalist>
-        </div>
-        <div class="mb-2 relCheckboxes"></div>
-        <div class="mb-2">
-          <label>Outline Color</label>
-          <div id="${panelId}-colorpicker"></div>
-        </div>
-        <div class="mb-2">
-          <label>Fill Transparency</label>
-          <input type="range" class="form-range opacitySlider" min="0" max="100" value="0">
-        </div>
-        <div class="d-flex gap-2">
-          <button class="btn btn-success drawBtn">Draw <span class="spinner-border spinner-border-sm"></span></button>
-          <button class="btn btn-danger clearBtn">Clear</button>
-        </div>
-      `;
-      document.getElementById("panels").appendChild(panel);
+    // Add first panel
+    createPanel(panelCounter++);
 
-      // Setup Color Picker
-      const colorPicker = new iro.ColorPicker(`#${panelId}-colorpicker`, { width: 150, color: "#000" });
+    // Add button handler
+    document.getElementById('addPanel').addEventListener('click', () => {
+      createPanel(panelCounter++);
+    });
+  }
 
-      // Event listeners
-      const typeSelect = panel.querySelector(".typeSelect");
-      const nameInput = panel.querySelector(".nameInput");
-      const datalist = panel.querySelector("datalist");
-      const spinner = panel.querySelector(".spinner-border");
-
-      let drawnLayers = [];
-
-      typeSelect.addEventListener("change", async () => {
-        const type = typeSelect.value;
-        nameInput.disabled = false;
-        nameInput.value = "";
-        datalist.innerHTML = "";
-        const data = await loadGeoJSON(type);
-        if (data && data.features) {
-          const names = data.features.map(f => f.properties.Name);
-          names.sort().forEach(n => {
-            const opt = document.createElement("option");
-            opt.value = n;
-            datalist.appendChild(opt);
-          });
-        } else {
-          alert(`Invalid data format in ${geojsonFiles[type]}. This layer will be skipped`);
-        }
-      });
-
-      panel.querySelector(".drawBtn").addEventListener("click", async () => {
-        spinner.style.display = "inline-block";
-        const type = typeSelect.value;
-        const name = nameInput.value;
-        if (!type || !name) {
-          alert("Please select a type and name first");
-          spinner.style.display = "none";
-          return;
-        }
-        const data = await loadGeoJSON(type);
-        if (!data) {
-          spinner.style.display = "none";
-          return;
-        }
-        const match = data.features.find(f => f.properties.Name.toLowerCase() === name.toLowerCase());
-        if (!match) {
-          alert(`No boundary found for '${name}' in ${type} data`);
-          spinner.style.display = "none";
-          return;
-        }
-        const color = colorPicker.color.hexString;
-        const opacity = panel.querySelector(".opacitySlider").value / 100;
-
-        const layer = L.geoJSON(match, {
-          style: {
-            color: color,
-            weight: 2,
-            fillOpacity: opacity
-          }
-        }).addTo(map);
-        drawnLayers.push(layer);
-        map.fitBounds(layer.getBounds());
-        spinner.style.display = "none";
-      });
-
-      panel.querySelector(".clearBtn").addEventListener("click", () => {
-        drawnLayers.forEach(l => map.removeLayer(l));
-        drawnLayers = [];
-      });
-    }
-
-    // Initialize first panel
-    createPanel();
-
-    // Add new panel button
-    document.getElementById("addPanelBtn").addEventListener("click", createPanel);
-  </script>
+  init();
+</script>
 </body>
 </html>
