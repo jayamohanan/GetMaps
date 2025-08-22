@@ -2,67 +2,211 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>2we Kerala Administrative Boundaries Viewer</title>
+  <title>asa Kerala Administrative Boundaries Viewer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <!-- Custom Styles -->
   <style>
-    body { margin: 0; display: flex; height: 100vh; font-family: Arial, sans-serif; }
-    #sidebar { width: 340px; padding: 15px; box-sizing: border-box; background: #f7f7f7; overflow-y: auto; border-right: 1px solid #ddd; }
-    #map { flex: 1; }
-    .form-group { margin-bottom: 10px; }
-    label { display: block; margin-bottom: 4px; font-weight: bold; }
-    input, select { width: 100%; padding: 6px; }
-    button { padding: 8px 12px; margin-right: 6px; cursor: pointer; }
-    #loadingSpinner { display: none; margin-left: 8px; }
-    @media(max-width: 768px) { #sidebar { width: 100%; position: absolute; z-index: 1000; height: auto; border-right: none; border-bottom: 1px solid #ddd; } #map { margin-top: 400px; } }
+    body, html {
+      margin: 0;
+      height: 100%;
+      width: 100%;
+      font-family: Arial, sans-serif;
+    }
+
+    #app {
+      display: flex;
+      height: 100%;
+      width: 100%;
+    }
+
+    /* Sidebar */
+    #sidebar {
+      width: 340px;
+      min-width: 320px;
+      max-width: 350px;
+      background: #f9f9f9;
+      border-right: 1px solid #ddd;
+      padding: 12px;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
+
+    @media (max-width: 768px) {
+      #sidebar {
+        position: absolute;
+        width: 100%;
+        height: auto;
+        z-index: 9999;
+        border-right: none;
+        border-bottom: 1px solid #ddd;
+      }
+    }
+
+    /* Map */
+    #map {
+      flex: 1;
+      height: 100%;
+    }
+
+    h2 {
+      font-size: 16px;
+      margin: 10px 0;
+    }
+
+    .input-group {
+      margin-bottom: 15px;
+    }
+
+    .input-group label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .input-group input[type="text"] {
+      width: 100%;
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .color-transparency {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+    }
+
+    button {
+      padding: 6px 12px;
+      margin-right: 8px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .draw-btn {
+      background-color: #0078d7;
+      color: white;
+    }
+
+    .clear-btn {
+      background-color: #e74c3c;
+      color: white;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top: 2px solid #0078d7;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error-popup {
+      position: fixed;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border: 1px solid #444;
+      padding: 20px;
+      z-index: 10000;
+      text-align: center;
+    }
+
+    .error-popup button {
+      margin-top: 10px;
+      background: #0078d7;
+      color: white;
+    }
   </style>
 </head>
 <body>
-  <div id="sidebar">
-    <h2>Kerala Boundaries Viewer</h2>
-    <div class="form-group">
-      <label>Enter State Name</label>
-      <input type="text" id="stateInput" placeholder="Kerala">
-    </div>
-    <div class="form-group">
-      <label>Enter District Name</label>
-      <input type="text" id="districtInput" placeholder="e.g., Kottayam">
-    </div>
-    <div class="form-group">
-      <label>Enter Assembly Name</label>
-      <input type="text" id="assemblyInput" placeholder="e.g., Pala">
-    </div>
-    <div class="form-group">
-      <label>Enter Local Body Name</label>
-      <input type="text" id="lsgInput" placeholder="e.g., Pala Municipality">
-    </div>
-    <div class="form-group">
-      <label>Boundary Color</label>
-      <input type="color" id="colorPicker" value="#000000">
-    </div>
-    <div class="form-group">
-      <label>Fill Transparency</label>
-      <input type="range" id="transparencySlider" min="0" max="100" value="0">
-    </div>
-    <div>
-      <button id="drawBtn">Draw</button>
-      <button id="clearBtn">Clear</button>
-      <span id="loadingSpinner">⏳</span>
-    </div>
-  </div>
-  <div id="map"></div>
+  <div id="app">
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <h2>Kerala Boundaries Viewer</h2>
 
+      <!-- Input Groups -->
+      <div class="input-group" data-type="state">
+        <label>Enter State Name</label>
+        <input type="text" placeholder="e.g., Kerala" class="name-input">
+        <div class="color-transparency">
+          <input type="color" value="#000000" class="color-input">
+          <input type="range" min="0" max="100" value="0" class="transparency-input">
+        </div>
+        <div>
+          <button class="draw-btn">Draw</button>
+          <button class="clear-btn">Clear</button>
+        </div>
+      </div>
+
+      <div class="input-group" data-type="district">
+        <label>Enter District Name(s)</label>
+        <input type="text" placeholder="e.g., Kottayam, Idukki" class="name-input">
+        <div class="color-transparency">
+          <input type="color" value="#000000" class="color-input">
+          <input type="range" min="0" max="100" value="0" class="transparency-input">
+        </div>
+        <div>
+          <button class="draw-btn">Draw</button>
+          <button class="clear-btn">Clear</button>
+        </div>
+      </div>
+
+      <div class="input-group" data-type="assembly">
+        <label>Enter Assembly Name(s)</label>
+        <input type="text" placeholder="e.g., Pala, Ettumanoor" class="name-input">
+        <div class="color-transparency">
+          <input type="color" value="#000000" class="color-input">
+          <input type="range" min="0" max="100" value="0" class="transparency-input">
+        </div>
+        <div>
+          <button class="draw-btn">Draw</button>
+          <button class="clear-btn">Clear</button>
+        </div>
+      </div>
+
+      <div class="input-group" data-type="lsg">
+        <label>Enter Local Body Name(s)</label>
+        <input type="text" placeholder="e.g., Pala Municipality" class="name-input">
+        <div class="color-transparency">
+          <input type="color" value="#000000" class="color-input">
+          <input type="range" min="0" max="100" value="0" class="transparency-input">
+        </div>
+        <div>
+          <button class="draw-btn">Draw</button>
+          <button class="clear-btn">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div id="map"></div>
+  </div>
+
+  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
   <script>
-    // --- Map Initialization ---
+    // Map initialization
     let map;
     try {
       map = L.map('map').setView([10.8505, 76.2711], 7);
-    } catch (err) {
-      alert("Map failed to initialize. Please refresh the page");
-      console.error("Map init error:", err);
+    } catch (e) {
+      showError("Map failed to initialize. Please refresh the page");
     }
 
+    // Base maps
     const baseMaps = {
       "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
@@ -70,121 +214,116 @@
       "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenTopoMap'
       }),
-      "Blank": L.tileLayer('', {})
+      "Blank": L.tileLayer('', { attribution: '' })
     };
 
     baseMaps["OpenStreetMap"].addTo(map);
     L.control.layers(baseMaps).addTo(map);
 
-    // --- Layer containers ---
-    let stateLayer, districtLayer, assemblyLayer, lsgLayer;
+    // GeoJSON cache
+    const geojsonFiles = {
+      state: "state_V17.geojson",
+      district: "district_V17.geojson",
+      assembly: "assembly_V17.geojson",
+      lsg: "lsg_V17.geojson"
+    };
 
-    function loadGeoJSON(filename) {
-      return fetch(filename)
-        .then(resp => {
-          if (!resp.ok) {
-            alert(`Data file ${filename} not found`);
-            console.error("Missing file:", filename);
-            return null;
-          }
-          return resp.json();
-        })
-        .catch(err => {
-          alert(`Data file ${filename} not found`);
-          console.error("Error loading file", filename, err);
-          return null;
-        });
-    }
+    const geojsonData = {};
+    const drawnLayers = {
+      state: [],
+      district: [],
+      assembly: [],
+      lsg: []
+    };
 
-    async function drawBoundaries() {
-      document.getElementById("loadingSpinner").style.display = "inline";
-
-      const stateName = document.getElementById("stateInput").value.trim();
-      const districtName = document.getElementById("districtInput").value.trim();
-      const assemblyName = document.getElementById("assemblyInput").value.trim();
-      const lsgName = document.getElementById("lsgInput").value.trim();
-
-      const color = document.getElementById("colorPicker").value;
-      const transparency = document.getElementById("transparencySlider").value;
-      const fillOpacity = (100 - transparency) / 100;
-
+    // Load GeoJSON files
+    async function loadGeoJSON(type) {
+      if (geojsonData[type]) return geojsonData[type];
       try {
-        if (stateName) {
-          const stateData = await loadGeoJSON("state_V17.geojson");
-          if (stateData) {
-            const feature = stateData.features.find(f => f.properties.Name.toLowerCase() === stateName.toLowerCase());
-            if (!feature) { alert(`No boundary found for '${stateName}' in state data`); }
-            else {
-              if (stateLayer) map.removeLayer(stateLayer);
-              stateLayer = L.geoJSON(feature, {
-                style: { color, weight: 2, fillOpacity, opacity: 1 }
-              }).addTo(map);
-              stateLayer.setZIndex(100);
-            }
-          }
-        }
-
-        if (districtName) {
-          const distData = await loadGeoJSON("district_V17.geojson");
-          if (distData) {
-            const feature = distData.features.find(f => f.properties.Name.toLowerCase() === districtName.toLowerCase());
-            if (!feature) { alert(`No boundary found for '${districtName}' in district data`); }
-            else {
-              if (districtLayer) map.removeLayer(districtLayer);
-              districtLayer = L.geoJSON(feature, {
-                style: { color, weight: 2, fillOpacity, opacity: 1 }
-              }).addTo(map);
-              districtLayer.setZIndex(200);
-            }
-          }
-        }
-
-        if (assemblyName) {
-          const asmData = await loadGeoJSON("assembly_V17.geojson");
-          if (asmData) {
-            const feature = asmData.features.find(f => f.properties.Name.toLowerCase() === assemblyName.toLowerCase());
-            if (!feature) { alert(`No boundary found for '${assemblyName}' in assembly data`); }
-            else {
-              if (assemblyLayer) map.removeLayer(assemblyLayer);
-              assemblyLayer = L.geoJSON(feature, {
-                style: { color, weight: 2, fillOpacity, opacity: 1 }
-              }).addTo(map);
-              assemblyLayer.setZIndex(300);
-            }
-          }
-        }
-
-        if (lsgName) {
-          const lsgData = await loadGeoJSON("lsg_V17.geojson");
-          if (lsgData) {
-            const feature = lsgData.features.find(f => f.properties.Name.toLowerCase() === lsgName.toLowerCase());
-            if (!feature) { alert(`No boundary found for '${lsgName}' in local body data`); }
-            else {
-              if (lsgLayer) map.removeLayer(lsgLayer);
-              lsgLayer = L.geoJSON(feature, {
-                style: { color, weight: 2, fillOpacity, opacity: 1 }
-              }).addTo(map);
-              lsgLayer.setZIndex(400);
-            }
-          }
-        }
-      } catch (err) {
-        alert("Failed to draw boundary. Please try again");
-        console.error("Drawing error:", err);
-      } finally {
-        document.getElementById("loadingSpinner").style.display = "none";
+        const res = await fetch(geojsonFiles[type]);
+        if (!res.ok) throw new Error("not found");
+        geojsonData[type] = await res.json();
+        return geojsonData[type];
+      } catch (e) {
+        showError(`Data file ${geojsonFiles[type]} not found`);
+        return null;
       }
     }
 
-    function clearBoundaries() {
-      if (stateLayer) map.removeLayer(stateLayer);
-      if (districtLayer) map.removeLayer(districtLayer);
-      if (assemblyLayer) map.removeLayer(assemblyLayer);
-      if (lsgLayer) map.removeLayer(lsgLayer);
+    // Draw boundaries
+    async function drawBoundary(type, names, color, opacity) {
+      const data = await loadGeoJSON(type);
+      if (!data) return;
+
+      names.forEach(name => {
+        const feature = data.features.find(f => f.properties.Name.toLowerCase() === name.trim().toLowerCase());
+        if (!feature) {
+          showError(`No boundary found for '${name}' in ${type} data`);
+          return;
+        }
+
+        try {
+          const layer = L.geoJSON(feature, {
+            style: {
+              color: color,
+              weight: 2,
+              fillColor: color,
+              fillOpacity: opacity / 100
+            }
+          }).addTo(map);
+
+          drawnLayers[type].push(layer);
+        } catch (err) {
+          console.error(err);
+          showError("Failed to draw boundary. Please try again");
+        }
+      });
     }
 
-    document.getElementById("drawBtn").addEventListener("click", drawBoundaries);
-    document.getElementById("clearBtn").addEventListener("click", clearBoundaries);
+    // Clear boundaries
+    function clearBoundary(type) {
+      drawnLayers[type].forEach(layer => map.removeLayer(layer));
+      drawnLayers[type] = [];
+    }
+
+    // Handle buttons
+    document.querySelectorAll(".input-group").forEach(group => {
+      const type = group.dataset.type;
+      const input = group.querySelector(".name-input");
+      const colorInput = group.querySelector(".color-input");
+      const transparencyInput = group.querySelector(".transparency-input");
+      const drawBtn = group.querySelector(".draw-btn");
+      const clearBtn = group.querySelector(".clear-btn");
+
+      drawBtn.addEventListener("click", async () => {
+        drawBtn.disabled = true;
+        const spinner = document.createElement("span");
+        spinner.classList.add("loading-spinner");
+        drawBtn.appendChild(spinner);
+
+        const names = input.value.split(",").map(x => x.trim()).filter(x => x);
+        if (names.length > 0) {
+          await drawBoundary(type, names, colorInput.value, transparencyInput.value);
+        }
+
+        drawBtn.disabled = false;
+        spinner.remove();
+      });
+
+      clearBtn.addEventListener("click", () => {
+        clearBoundary(type);
+      });
+    });
+
+    // Error popup
+    function showError(msg) {
+      const popup = document.createElement("div");
+      popup.className = "error-popup";
+      popup.innerHTML = `<p>${msg}</p><button>OK</button>`;
+      document.body.appendChild(popup);
+      popup.querySelector("button").addEventListener("click", () => popup.remove());
+      console.warn(msg);
+    }
   </script>
 </body>
 </html>
