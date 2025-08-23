@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>kj Kerala Administrative Boundaries Viewer</title>
+  <title>GMSV2 Kerala Administrative Boundaries Viewer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -354,13 +354,12 @@
               weight: 2,
               fillColor: color,
               fillOpacity: opacity / 100
+            },
+            onEachFeature: function (f, l) {
+              // attach context menu to each polygon/multipolygon part
+              l.on("contextmenu", e => openContextMenu(e, l));
             }
           }).addTo(map);
-
-          // Attach context menu listener to each feature
-          layer.eachLayer(l => {
-            l.on("contextmenu", e => openContextMenu(e, l));
-          });
 
           drawnLayers[type].push(layer);
         } catch (err) {
