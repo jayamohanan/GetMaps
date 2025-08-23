@@ -1,198 +1,419 @@
-<script>
-  // Map initialization
-  let map;
-  try {
-    map = L.map('map').setView([10.8505, 76.2711], 7);
-  } catch (e) {
-    showError("Map failed to initialize. Please refresh the page");
-  }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>kj Kerala Administrative Boundaries Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <!-- Custom Styles -->
+  <style>
+    body, html {
+      margin: 0;
+      height: 100%;
+      width: 100%;
+      font-family: Arial, sans-serif;
+    }
 
-  // Base maps
-  const baseMaps = {
-    "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap'
-    }),
-    "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenTopoMap'
-    }),
-    "Blank": L.tileLayer('', { attribution: '' })
-  };
+    #app {
+      display: flex;
+      height: 100%;
+      width: 100%;
+    }
 
-  baseMaps["OpenStreetMap"].addTo(map);
-  L.control.layers(baseMaps).addTo(map);
+    /* Sidebar */
+    #sidebar {
+      width: 340px;
+      min-width: 320px;
+      max-width: 350px;
+      background: #f9f9f9;
+      border-right: 1px solid #ddd;
+      padding: 12px;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
 
-  // GeoJSON cache
-  const geojsonFiles = {
-    state: "state_V17.geojson",
-    district: "district_V17.geojson",
-    assembly: "assembly_V17.geojson",
-    lsg: "lsg_V17.geojson"
-  };
+    @media (max-width: 768px) {
+      #sidebar {
+        position: absolute;
+        width: 100%;
+        height: auto;
+        z-index: 9999;
+        border-right: none;
+        border-bottom: 1px solid #ddd;
+      }
+    }
 
-  const geojsonData = {};
-  const drawnLayers = {
-    state: [],
-    district: [],
-    assembly: [],
-    lsg: []
-  };
+    /* Map */
+    #map {
+      flex: 1;
+      height: 100%;
+    }
 
-  // Context menu container
-  const contextMenu = document.createElement("div");
-  contextMenu.style.position = "absolute";
-  contextMenu.style.background = "white";
-  contextMenu.style.border = "1px solid #444";
-  contextMenu.style.padding = "10px";
-  contextMenu.style.zIndex = "10001";
-  contextMenu.style.display = "none";
-  contextMenu.innerHTML = `
-    <label>Color: <input type="color" id="ctx-color"></label><br>
-    <label>Transparency: <input type="range" id="ctx-opacity" min="0" max="100"></label><br>
-    <label>Thickness: <input type="range" id="ctx-weight" min="1" max="10"></label><br>
+    h2 {
+      font-size: 16px;
+      margin: 10px 0;
+    }
+
+    .input-group {
+      margin-bottom: 15px;
+    }
+
+    .input-group label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .input-group input[type="text"] {
+      width: 100%;
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .color-transparency {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+    }
+
+    button {
+      padding: 6px 12px;
+      margin-right: 8px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .draw-btn {
+      background-color: #0078d7;
+      color: white;
+    }
+
+    .clear-btn {
+      background-color: #e74c3c;
+      color: white;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top: 2px solid #0078d7;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error-popup {
+      position: fixed;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border: 1px solid #444;
+      padding: 20px;
+      z-index: 10000;
+      text-align: center;
+    }
+
+    .error-popup button {
+      margin-top: 10px;
+      background: #0078d7;
+      color: white;
+    }
+
+    /* Context Menu */
+    #context-menu {
+      position: absolute;
+      background: white;
+      border: 1px solid #444;
+      padding: 10px;
+      z-index: 10001;
+      display: none;
+      font-size: 14px;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.2);
+    }
+
+    #context-menu label {
+      display: block;
+      margin: 6px 0 2px;
+    }
+
+    #context-menu input[type="range"] {
+      width: 100%;
+    }
+
+    #context-menu button {
+      margin-top: 8px;
+      background: #0078d7;
+      color: white;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <h2>Kerala Boundaries Viewer</h2>
+
+      <!-- Input Groups -->
+      <div class="input-group" data-type="state">
+        <label>Enter State Name</label>
+        <input type="text" placeholder="e.g., Kerala" class="name-input">
+        <div class="color-transparency">
+          <input type="color" value="#000000" class="color-input">
+          <input type="range" min="0" max="100" value="0" class="transparency-input">
+        </div>
+        <div>
+          <button class="draw-btn">Draw</button>
+          <button class="clear-btn">Clear</button>
+        </div>
+      </div>
+
+      <div class="input-group" data-type="district">
+        <label>Enter District Name(s)</label>
+        <input type="text" placeholder="e.g., Kottayam, Idukki" class="name-input">
+        <div class="color-transparency">
+          <input type="color" value="#000000" class="color-input">
+          <input type="range" min="0" max="100" value="0" class="transparency-input">
+        </div>
+        <div>
+          <button class="draw-btn">Draw</button>
+          <button class="clear-btn">Clear</button>
+        </div>
+      </div>
+
+      <div class="input-group" data-type="assembly">
+        <label>Enter Assembly Name(s)</label>
+        <input type="text" placeholder="e.g., Pala, Ettumanoor" class="name-input">
+        <div class="color-transparency">
+          <input type="color" value="#000000" class="color-input">
+          <input type="range" min="0" max="100" value="0" class="transparency-input">
+        </div>
+        <div>
+          <button class="draw-btn">Draw</button>
+          <button class="clear-btn">Clear</button>
+        </div>
+      </div>
+
+      <div class="input-group" data-type="lsg">
+        <label>Enter Local Body Name(s)</label>
+        <input type="text" placeholder="e.g., Pala Municipality" class="name-input">
+        <div class="color-transparency">
+          <input type="color" value="#000000" class="color-input">
+          <input type="range" min="0" max="100" value="0" class="transparency-input">
+        </div>
+        <div>
+          <button class="draw-btn">Draw</button>
+          <button class="clear-btn">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div id="map"></div>
+  </div>
+
+  <!-- Context Menu -->
+  <div id="context-menu">
+    <label>Color: <input type="color" id="ctx-color"></label>
+    <label>Transparency: <input type="range" id="ctx-opacity" min="0" max="100"></label>
+    <label>Thickness: <input type="range" id="ctx-weight" min="1" max="10"></label>
     <button id="ctx-close">Close</button>
-  `;
-  document.body.appendChild(contextMenu);
+  </div>
 
-  let currentLayer = null;
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-  // Show context menu
-  function openContextMenu(e, layer) {
-    e.originalEvent.preventDefault();
-    e.originalEvent.stopPropagation();
-
-    currentLayer = layer;
-    const style = layer.options;
-
-    document.getElementById("ctx-color").value = style.color || "#000000";
-    document.getElementById("ctx-opacity").value = (style.fillOpacity || 0) * 100;
-    document.getElementById("ctx-weight").value = style.weight || 2;
-
-    contextMenu.style.left = e.originalEvent.pageX + "px";
-    contextMenu.style.top = e.originalEvent.pageY + "px";
-    contextMenu.style.display = "block";
-  }
-
-  // Update styles from context menu
-  document.getElementById("ctx-color").addEventListener("input", e => {
-    if (currentLayer) {
-      currentLayer.setStyle({ color: e.target.value, fillColor: e.target.value });
-    }
-  });
-
-  document.getElementById("ctx-opacity").addEventListener("input", e => {
-    if (currentLayer) {
-      currentLayer.setStyle({ fillOpacity: e.target.value / 100 });
-    }
-  });
-
-  document.getElementById("ctx-weight").addEventListener("input", e => {
-    if (currentLayer) {
-      currentLayer.setStyle({ weight: parseInt(e.target.value) });
-    }
-  });
-
-  document.getElementById("ctx-close").addEventListener("click", () => {
-    contextMenu.style.display = "none";
-    currentLayer = null;
-  });
-
-  // Hide menu if clicking elsewhere
-  map.on("click", () => {
-    contextMenu.style.display = "none";
-    currentLayer = null;
-  });
-
-  // Load GeoJSON files
-  async function loadGeoJSON(type) {
-    if (geojsonData[type]) return geojsonData[type];
+  <script>
+    // Map initialization
+    let map;
     try {
-      const res = await fetch(geojsonFiles[type]);
-      if (!res.ok) throw new Error("not found");
-      geojsonData[type] = await res.json();
-      return geojsonData[type];
+      map = L.map('map').setView([10.8505, 76.2711], 7);
     } catch (e) {
-      showError(`Data file ${geojsonFiles[type]} not found`);
-      return null;
+      showError("Map failed to initialize. Please refresh the page");
     }
-  }
 
-  // Draw boundaries
-  async function drawBoundary(type, names, color, opacity) {
-    const data = await loadGeoJSON(type);
-    if (!data) return;
+    // Base maps
+    const baseMaps = {
+      "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+      }),
+      "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenTopoMap'
+      }),
+      "Blank": L.tileLayer('', { attribution: '' })
+    };
 
-    names.forEach(name => {
-      const feature = data.features.find(f => f.properties.Name.toLowerCase() === name.trim().toLowerCase());
-      if (!feature) {
-        showError(`No boundary found for '${name}' in ${type} data`);
-        return;
+    baseMaps["OpenStreetMap"].addTo(map);
+    L.control.layers(baseMaps).addTo(map);
+
+    // GeoJSON cache
+    const geojsonFiles = {
+      state: "state_V17.geojson",
+      district: "district_V17.geojson",
+      assembly: "assembly_V17.geojson",
+      lsg: "lsg_V17.geojson"
+    };
+
+    const geojsonData = {};
+    const drawnLayers = {
+      state: [],
+      district: [],
+      assembly: [],
+      lsg: []
+    };
+
+    // Context menu logic
+    const contextMenu = document.getElementById("context-menu");
+    let currentLayer = null;
+
+    function openContextMenu(e, layer) {
+      e.originalEvent.preventDefault();
+      e.originalEvent.stopPropagation();
+
+      currentLayer = layer;
+      const style = layer.options;
+
+      document.getElementById("ctx-color").value = style.color || "#000000";
+      document.getElementById("ctx-opacity").value = (style.fillOpacity || 0) * 100;
+      document.getElementById("ctx-weight").value = style.weight || 2;
+
+      contextMenu.style.left = e.originalEvent.pageX + "px";
+      contextMenu.style.top = e.originalEvent.pageY + "px";
+      contextMenu.style.display = "block";
+    }
+
+    // Update styles from context menu
+    document.getElementById("ctx-color").addEventListener("input", e => {
+      if (currentLayer) {
+        currentLayer.setStyle({ color: e.target.value, fillColor: e.target.value });
       }
+    });
 
+    document.getElementById("ctx-opacity").addEventListener("input", e => {
+      if (currentLayer) {
+        currentLayer.setStyle({ fillOpacity: e.target.value / 100 });
+      }
+    });
+
+    document.getElementById("ctx-weight").addEventListener("input", e => {
+      if (currentLayer) {
+        currentLayer.setStyle({ weight: parseInt(e.target.value) });
+      }
+    });
+
+    document.getElementById("ctx-close").addEventListener("click", () => {
+      contextMenu.style.display = "none";
+      currentLayer = null;
+    });
+
+    map.on("click", () => {
+      contextMenu.style.display = "none";
+      currentLayer = null;
+    });
+
+    // Load GeoJSON files
+    async function loadGeoJSON(type) {
+      if (geojsonData[type]) return geojsonData[type];
       try {
-        const layer = L.geoJSON(feature, {
-          style: {
-            color: color,
-            weight: 2,
-            fillColor: color,
-            fillOpacity: opacity / 100
-          }
-        }).addTo(map);
-
-        // Attach context menu listener to each feature
-        layer.eachLayer(l => {
-          l.on("contextmenu", e => openContextMenu(e, l));
-        });
-
-        drawnLayers[type].push(layer);
-      } catch (err) {
-        console.error(err);
-        showError("Failed to draw boundary. Please try again");
+        const res = await fetch(geojsonFiles[type]);
+        if (!res.ok) throw new Error("not found");
+        geojsonData[type] = await res.json();
+        return geojsonData[type];
+      } catch (e) {
+        showError(`Data file ${geojsonFiles[type]} not found`);
+        return null;
       }
+    }
+
+    // Draw boundaries
+    async function drawBoundary(type, names, color, opacity) {
+      const data = await loadGeoJSON(type);
+      if (!data) return;
+
+      names.forEach(name => {
+        const feature = data.features.find(f => f.properties.Name.toLowerCase() === name.trim().toLowerCase());
+        if (!feature) {
+          showError(`No boundary found for '${name}' in ${type} data`);
+          return;
+        }
+
+        try {
+          const layer = L.geoJSON(feature, {
+            style: {
+              color: color,
+              weight: 2,
+              fillColor: color,
+              fillOpacity: opacity / 100
+            }
+          }).addTo(map);
+
+          // Attach context menu listener to each feature
+          layer.eachLayer(l => {
+            l.on("contextmenu", e => openContextMenu(e, l));
+          });
+
+          drawnLayers[type].push(layer);
+        } catch (err) {
+          console.error(err);
+          showError("Failed to draw boundary. Please try again");
+        }
+      });
+    }
+
+    // Clear boundaries
+    function clearBoundary(type) {
+      drawnLayers[type].forEach(layer => map.removeLayer(layer));
+      drawnLayers[type] = [];
+    }
+
+    // Handle buttons
+    document.querySelectorAll(".input-group").forEach(group => {
+      const type = group.dataset.type;
+      const input = group.querySelector(".name-input");
+      const colorInput = group.querySelector(".color-input");
+      const transparencyInput = group.querySelector(".transparency-input");
+      const drawBtn = group.querySelector(".draw-btn");
+      const clearBtn = group.querySelector(".clear-btn");
+
+      drawBtn.addEventListener("click", async () => {
+        drawBtn.disabled = true;
+        const spinner = document.createElement("span");
+        spinner.classList.add("loading-spinner");
+        drawBtn.appendChild(spinner);
+
+        const names = input.value.split(",").map(x => x.trim()).filter(x => x);
+        if (names.length > 0) {
+          await drawBoundary(type, names, colorInput.value, transparencyInput.value);
+        }
+
+        drawBtn.disabled = false;
+        spinner.remove();
+      });
+
+      clearBtn.addEventListener("click", () => {
+        clearBoundary(type);
+      });
     });
-  }
 
-  // Clear boundaries
-  function clearBoundary(type) {
-    drawnLayers[type].forEach(layer => map.removeLayer(layer));
-    drawnLayers[type] = [];
-  }
-
-  // Handle buttons
-  document.querySelectorAll(".input-group").forEach(group => {
-    const type = group.dataset.type;
-    const input = group.querySelector(".name-input");
-    const colorInput = group.querySelector(".color-input");
-    const transparencyInput = group.querySelector(".transparency-input");
-    const drawBtn = group.querySelector(".draw-btn");
-    const clearBtn = group.querySelector(".clear-btn");
-
-    drawBtn.addEventListener("click", async () => {
-      drawBtn.disabled = true;
-      const spinner = document.createElement("span");
-      spinner.classList.add("loading-spinner");
-      drawBtn.appendChild(spinner);
-
-      const names = input.value.split(",").map(x => x.trim()).filter(x => x);
-      if (names.length > 0) {
-        await drawBoundary(type, names, colorInput.value, transparencyInput.value);
-      }
-
-      drawBtn.disabled = false;
-      spinner.remove();
-    });
-
-    clearBtn.addEventListener("click", () => {
-      clearBoundary(type);
-    });
-  });
-
-  // Error popup
-  function showError(msg) {
-    const popup = document.createElement("div");
-    popup.className = "error-popup";
-    popup.innerHTML = `<p>${msg}</p><button>OK</button>`;
-    document.body.appendChild(popup);
-    popup.querySelector("button").addEventListener("click", () => popup.remove());
-    console.warn(msg);
-  }
-</script>
+    // Error popup
+    function showError(msg) {
+      const popup = document.createElement("div");
+      popup.className = "error-popup";
+      popup.innerHTML = `<p>${msg}</p><button>OK</button>`;
+      document.body.appendChild(popup);
+      popup.querySelector("button").addEventListener("click", () => popup.remove());
+      console.warn(msg);
+    }
+  </script>
+</body>
+</html>
